@@ -1,0 +1,14 @@
+[package]
+name = "warc"
+version = "0.0.1"
+description = "A Rust library for reading and writing WARC files."
+readme = "README.md"
+repository = "https://github.com/jedireza/rust-warc"
+license = "MIT"
+authors = ["Reza Akhavan <reza@akhavan.me>"]
+keywords = ["warc", "web", "archive"]
+
+[dependencies]
+uuid = "0.1.18"
+chrono = "0.2.19"
+hyper = "0.7.2"
