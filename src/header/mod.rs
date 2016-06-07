@@ -24,7 +24,7 @@ pub use self::warc_payload_digest::WARCPayloadDigest;
 pub use self::warc_ip_address::WARCIPAddress;
 pub use self::warc_refers_to::WARCRefersTo;
 pub use self::warc_target_uri::WARCTargetURI;
-pub use self::warc_truncated::WARCTruncated;
+pub use self::warc_truncated::{WARCTruncated, WARCTruncatedType};
 pub use self::warc_warcinfo_id::WARCWarcinfoID;
 pub use self::warc_filename::WARCFilename;
 pub use self::warc_profile::WARCProfile;
