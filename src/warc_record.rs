@@ -33,7 +33,6 @@ impl WARCRecord {
 }
 
 impl fmt::Display for WARCRecord {
-
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let _ = writeln!(f, "WARC/{}", self.version);
 

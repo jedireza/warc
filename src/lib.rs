@@ -2,7 +2,7 @@
 
 extern crate uuid;
 extern crate chrono;
-extern crate hyper;
+#[macro_use] extern crate hyper;
 
 pub mod header;
 mod warc_record;
