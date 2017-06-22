@@ -23,5 +23,5 @@ header! {
     /// This document recommends no particular algorithm.
     ///
     /// Any record may have a `WARC-Block-Digest` field.
-    (WARCBlockDigest, "WARC-Block-Digest") => [String]
+    (WarcBlockDigest, "WARC-Block-Digest") => [String]
 }

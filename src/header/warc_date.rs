@@ -1,11 +1,14 @@
 extern crate hyper;
 
-use chrono::{DateTime, UTC};
+use chrono::DateTime;
+use chrono::Utc;
 use chrono::offset::TimeZone;
+use hyper::header::Formatter;
+use hyper::header::Header;
+use hyper::header::Raw;
+use hyper::header::parsing::from_one_raw_str;
 use std::fmt;
 use std::str;
-use hyper::header::{Header, HeaderFormat};
-use hyper::header::parsing::from_one_raw_str;
 
 /// `WARC-Date` header, defined in ISO28500; section 5.4
 ///
@@ -24,41 +27,33 @@ use hyper::header::parsing::from_one_raw_str;
 ///
 /// All records shall have a `WARC-Date` field.
 #[derive(Clone, Debug, PartialEq)]
-pub struct WARCDate(pub DateTime<UTC>);
+pub struct WarcDate(pub DateTime<Utc>);
 
-impl Header for WARCDate {
+impl Header for WarcDate {
     fn header_name() -> &'static str {
         "WARC-Date"
     }
 
-    fn parse_header(raw: &[Vec<u8>]) -> hyper::error::Result<WARCDate> {
+    fn parse_header(raw: &Raw) -> hyper::error::Result<WarcDate> {
         from_one_raw_str(raw).and_then(|val: String| {
-            match UTC.datetime_from_str(&val, "%Y-%m-%dT%H:%M:%SZ") {
-                Ok(date) => Ok(WARCDate(date)),
+            match Utc.datetime_from_str(&val, "%Y-%m-%dT%H:%M:%SZ") {
+                Ok(date) => Ok(WarcDate(date)),
                 _ => Err(hyper::error::Error::Header)
             }
         })
     }
-}
 
-impl HeaderFormat for WARCDate {
-    fn fmt_header(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0.format("%Y-%m-%dT%H:%M:%SZ"))
+    fn fmt_header(&self, f: &mut Formatter) -> fmt::Result {
+        f.fmt_line(&self.0.format("%Y-%m-%dT%H:%M:%SZ"))
     }
 }
 
-impl fmt::Display for WARCDate {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.fmt_header(f)
-    }
-}
-
-impl str::FromStr for WARCDate {
+impl str::FromStr for WarcDate {
     type Err = hyper::error::Error;
 
-    fn from_str(val: &str) -> hyper::error::Result<WARCDate> {
-        match UTC.datetime_from_str(&val, "%Y-%m-%dT%H:%M:%SZ") {
-            Ok(date) => Ok(WARCDate(date)),
+    fn from_str(val: &str) -> hyper::error::Result<WarcDate> {
+        match Utc.datetime_from_str(&val, "%Y-%m-%dT%H:%M:%SZ") {
+            Ok(date) => Ok(WarcDate(date)),
             _ => Err(hyper::error::Error::Header)
         }
     }

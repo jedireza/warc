@@ -16,5 +16,5 @@ header! {
     /// The `WARC-Identified-Payload-Type` field may be used on WARC records with a
     /// well-defined payload and shall not be used on records without a well-defined
     /// payload.
-    (WARCIdentifiedPayloadType, "WARC-Identified-Payload-Type") => [String]
+    (WarcIdentifiedPayloadType, "WARC-Identified-Payload-Type") => [String]
 }

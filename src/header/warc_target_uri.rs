@@ -21,5 +21,5 @@ header! {
     /// `continuation` records shall have a `WARC-Target-URI` field. A `metadata`
     /// record may have a `WARC-Target-URI` field. A `warcinfo` record shall not
     /// have a `WARC-Target-URI` field.
-    (WARCTargetURI, "WARC-Target-URI") => [String]
+    (WarcTargetURI, "WARC-Target-URI") => [String]
 }

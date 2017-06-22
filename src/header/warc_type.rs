@@ -1,10 +1,12 @@
 extern crate hyper;
 
-use hyper::header::{Header, HeaderFormat};
+use hyper::header::Formatter;
+use hyper::header::Header;
+use hyper::header::Raw;
 use hyper::header::parsing::from_one_raw_str;
 use std::fmt;
-use std::str;
 use std::str::FromStr;
+use std::str;
 
 /// `WARC-Type` header, defined in ISO28500; section 5.5
 ///
@@ -29,46 +31,38 @@ use std::str::FromStr;
 ///
 /// WARC processing software shall ignore records of unrecognized type.
 #[derive(Clone, Debug, PartialEq)]
-pub struct WARCType(pub WARCRecordType);
+pub struct WarcType(pub WarcRecordType);
 
-impl Header for WARCType {
+impl Header for WarcType {
     fn header_name() -> &'static str {
         "WARC-Type"
     }
 
-    fn parse_header(raw: &[Vec<u8>]) -> hyper::error::Result<WARCType> {
+    fn parse_header(raw: &Raw) -> hyper::error::Result<WarcType> {
         from_one_raw_str(raw).and_then(|val: String| {
-            WARCType::from_str(&val)
+            WarcType::from_str(&val)
         })
     }
-}
 
-impl HeaderFormat for WARCType {
-    fn fmt_header(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
+    fn fmt_header(&self, f: &mut Formatter) -> fmt::Result {
+        f.fmt_line(&self.0)
     }
 }
 
-impl fmt::Display for WARCType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.fmt_header(f)
-    }
-}
-
-impl str::FromStr for WARCType {
+impl str::FromStr for WarcType {
     type Err = hyper::error::Error;
 
-    fn from_str(val: &str) -> hyper::error::Result<WARCType> {
+    fn from_str(val: &str) -> hyper::error::Result<WarcType> {
         match val {
-            "warcinfo" => Ok(WARCType(WARCRecordType::WARCInfo)),
-            "response" => Ok(WARCType(WARCRecordType::Response)),
-            "resource" => Ok(WARCType(WARCRecordType::Resource)),
-            "request" => Ok(WARCType(WARCRecordType::Request)),
-            "metadata" => Ok(WARCType(WARCRecordType::Metadata)),
-            "revisit" => Ok(WARCType(WARCRecordType::Revisit)),
-            "conversion" => Ok(WARCType(WARCRecordType::Conversion)),
-            "continuation" => Ok(WARCType(WARCRecordType::Continuation)),
-            _ => Ok(WARCType(WARCRecordType::Unknown(val.to_owned()))),
+            "warcinfo" => Ok(WarcType(WarcRecordType::WarcInfo)),
+            "response" => Ok(WarcType(WarcRecordType::Response)),
+            "resource" => Ok(WarcType(WarcRecordType::Resource)),
+            "request" => Ok(WarcType(WarcRecordType::Request)),
+            "metadata" => Ok(WarcType(WarcRecordType::Metadata)),
+            "revisit" => Ok(WarcType(WarcRecordType::Revisit)),
+            "conversion" => Ok(WarcType(WarcRecordType::Conversion)),
+            "continuation" => Ok(WarcType(WarcRecordType::Continuation)),
+            _ => Ok(WarcType(WarcRecordType::Unknown(val.to_owned()))),
         }
     }
 }
@@ -83,7 +77,7 @@ impl str::FromStr for WARCType {
 /// future standards, WARC processing software shall skip records of unknown
 /// type.
 #[derive(Clone, Debug, PartialEq)]
-pub enum WARCRecordType {
+pub enum WarcRecordType {
     /// `warcinfo` as defined in ISO28500; section 6.2
     ///
     /// A `warcinfo` record describes the records that follow it, up through end
@@ -131,7 +125,7 @@ pub enum WARCRecordType {
     /// appear in the middle of a WARC file.
     ///
     /// See annex C.1 below for an example of a `warcinfo` record.
-    WARCInfo,
+    WarcInfo,
     /// `response` as defined in ISO28500; section 6.3
     ///
     /// ### General
@@ -437,18 +431,18 @@ pub enum WARCRecordType {
     Unknown(String),
 }
 
-impl fmt::Display for WARCRecordType {
+impl fmt::Display for WarcRecordType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match *self {
-            WARCRecordType::WARCInfo => "warcinfo",
-            WARCRecordType::Response => "response",
-            WARCRecordType::Resource => "resource",
-            WARCRecordType::Request => "request",
-            WARCRecordType::Metadata => "metadata",
-            WARCRecordType::Revisit => "revisit",
-            WARCRecordType::Conversion => "conversion",
-            WARCRecordType::Continuation => "continuation",
-            WARCRecordType::Unknown(ref val) => val.as_ref(),
+            WarcRecordType::WarcInfo => "warcinfo",
+            WarcRecordType::Response => "response",
+            WarcRecordType::Resource => "resource",
+            WarcRecordType::Request => "request",
+            WarcRecordType::Metadata => "metadata",
+            WarcRecordType::Revisit => "revisit",
+            WarcRecordType::Conversion => "conversion",
+            WarcRecordType::Continuation => "continuation",
+            WarcRecordType::Unknown(ref val) => val.as_ref(),
         })
     }
 }

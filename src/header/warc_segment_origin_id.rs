@@ -14,5 +14,5 @@ header! {
     /// This field is mandatory on all `continuation` records, and shall not be used
     /// in other records. See the section below, Record segmentation, for full
     /// detail s on the use of WARC record segmentation.
-    (WARCSegmentOriginID, "WARC-Segment-Origin-ID") => [String]
+    (WarcSegmentOriginID, "WARC-Segment-Origin-ID") => [String]
 }
