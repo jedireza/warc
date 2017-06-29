@@ -31,5 +31,5 @@ header! {
     /// The `WARC-Payload-Digest` field may be used on WARC records with a
     /// well-defined payload and shall not be used on records without a well-defined
     /// payload.
-    (WARCPayloadDigest, "WARC-Payload-Digest") => [String]
+    (WarcPayloadDigest, "WARC-Payload-Digest") => [String]
 }

@@ -4,12 +4,12 @@ version = "0.0.2"
 description = "A Rust library for reading and writing WARC files."
 readme = "README.md"
 repository = "https://github.com/jedireza/rust-warc"
-documentation = "http://jedireza.github.io/rust-warc/"
+documentation = "https://docs.rs/crate/warc/"
 license = "MIT"
 authors = ["Reza Akhavan <reza@akhavan.me>"]
 keywords = ["warc", "web", "archive"]
 
 [dependencies]
-uuid = "0.1.18"
-chrono = "0.2.19"
-hyper = "0.7.2"
+chrono = "0.4.0"
+hyper = "0.11.0"
+uuid = { version = "0.5.0", features = ["v4"] }

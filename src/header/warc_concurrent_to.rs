@@ -23,5 +23,5 @@ header! {
     ///
     /// As an exception to the general rule, it is allowed to repeat several
     /// `WARC-Concurrent-To` fields within the same WARC record.
-    (WARCConcurrentTo, "WARC-Concurrent-To") => [String]
+    (WarcConcurrentTo, "WARC-Concurrent-To") => [String]
 }

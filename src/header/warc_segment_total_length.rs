@@ -16,5 +16,5 @@ header! {
     ///
     /// See the section below, Record segmentation, for full details on the use of
     /// WARC record segmentation.
-    (WARCSegmentTotalLength, "WARC-Segment-Total-Length") => [u64]
+    (WarcSegmentTotalLength, "WARC-Segment-Total-Length") => [u64]
 }

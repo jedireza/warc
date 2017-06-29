@@ -19,5 +19,5 @@ header! {
     ///
     /// The `WARC-Profile` field is mandatory on `revisit` type records and
     /// undefined for other record types.
-    (WARCProfile, "WARC-Profile") => [String]
+    (WarcProfile, "WARC-Profile") => [String]
 }

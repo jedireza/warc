@@ -1,10 +1,12 @@
 extern crate hyper;
 
-use hyper::header::{Header, HeaderFormat};
+use hyper::header::Formatter;
+use hyper::header::Header;
+use hyper::header::Raw;
 use hyper::header::parsing::from_one_raw_str;
 use std::fmt;
-use std::str;
 use std::str::FromStr;
+use std::str;
 
 /// `WARC-Truncated` header, defined in ISO28500; section 5.13
 ///
@@ -35,42 +37,34 @@ use std::str::FromStr;
 /// `Content-Length` shall still report the actual truncated size of the record
 /// block.
 #[derive(Clone, Debug, PartialEq)]
-pub struct WARCTruncated(pub WARCTruncatedType);
+pub struct WarcTruncated(pub WarcTruncatedType);
 
-impl Header for WARCTruncated {
+impl Header for WarcTruncated {
     fn header_name() -> &'static str {
         "WARC-Truncated"
     }
 
-    fn parse_header(raw: &[Vec<u8>]) -> hyper::error::Result<WARCTruncated> {
+    fn parse_header(raw: &Raw) -> hyper::error::Result<WarcTruncated> {
         from_one_raw_str(raw).and_then(|val: String| {
-            WARCTruncated::from_str(&val)
+            WarcTruncated::from_str(&val)
         })
     }
-}
 
-impl HeaderFormat for WARCTruncated {
-    fn fmt_header(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
+    fn fmt_header(&self, f: &mut Formatter) -> fmt::Result {
+        f.fmt_line(&self.0)
     }
 }
 
-impl fmt::Display for WARCTruncated {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.fmt_header(f)
-    }
-}
-
-impl str::FromStr for WARCTruncated {
+impl str::FromStr for WarcTruncated {
     type Err = hyper::error::Error;
 
-    fn from_str(val: &str) -> hyper::error::Result<WARCTruncated> {
+    fn from_str(val: &str) -> hyper::error::Result<WarcTruncated> {
         match val {
-            "length" => Ok(WARCTruncated(WARCTruncatedType::Length)),
-            "time" => Ok(WARCTruncated(WARCTruncatedType::Time)),
-            "disconnect" => Ok(WARCTruncated(WARCTruncatedType::Disconnect)),
-            "unspecified" => Ok(WARCTruncated(WARCTruncatedType::Unspecified)),
-            _ => Ok(WARCTruncated(WARCTruncatedType::Unknown(val.to_owned()))),
+            "length" => Ok(WarcTruncated(WarcTruncatedType::Length)),
+            "time" => Ok(WarcTruncated(WarcTruncatedType::Time)),
+            "disconnect" => Ok(WarcTruncated(WarcTruncatedType::Disconnect)),
+            "unspecified" => Ok(WarcTruncated(WarcTruncatedType::Unspecified)),
+            _ => Ok(WarcTruncated(WarcTruncatedType::Unknown(val.to_owned()))),
         }
     }
 }
@@ -79,7 +73,7 @@ impl str::FromStr for WARCTruncated {
 ///
 /// As defined in ISO28500; section 5.13
 #[derive(Clone, Debug, PartialEq)]
-pub enum WARCTruncatedType {
+pub enum WarcTruncatedType {
     /// `length` exceeds configured max length
     Length,
     /// `time` exceeds configured max time
@@ -92,14 +86,14 @@ pub enum WARCTruncatedType {
     Unknown(String),
 }
 
-impl fmt::Display for WARCTruncatedType {
+impl fmt::Display for WarcTruncatedType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match *self {
-            WARCTruncatedType::Length => "length",
-            WARCTruncatedType::Time => "time",
-            WARCTruncatedType::Disconnect => "disconnect",
-            WARCTruncatedType::Unspecified => "unspecified",
-            WARCTruncatedType::Unknown(ref val) => val.as_ref(),
+            WarcTruncatedType::Length => "length",
+            WarcTruncatedType::Time => "time",
+            WarcTruncatedType::Disconnect => "disconnect",
+            WarcTruncatedType::Unspecified => "unspecified",
+            WarcTruncatedType::Unknown(ref val) => val.as_ref(),
         })
     }
 }

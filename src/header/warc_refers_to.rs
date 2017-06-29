@@ -17,5 +17,5 @@ header! {
     /// record which helped determine the present record content. The
     /// `WARC-Refers-To` field shall not be used in `warcinfo`, `response`,
     /// `resource`, `request`, and `continuation` records.
-    (WARCRefersTo, "WARC-Refers-To") => [String]
+    (WarcRefersTo, "WARC-Refers-To") => [String]
 }

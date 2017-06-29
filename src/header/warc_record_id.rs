@@ -16,5 +16,5 @@ header! {
     /// ```
     ///
     /// All records shall have a `WARC-Record-ID` field.
-    (WARCRecordID, "WARC-Record-ID") => [String]
+    (WarcRecordID, "WARC-Record-ID") => [String]
 }

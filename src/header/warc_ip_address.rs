@@ -19,5 +19,5 @@ header! {
     /// The `WARC-IP-Address` field may be used on `response`, `resource`,
     /// `request`, `metadata`, and `revisit` records, but shall not be used on
     /// `warcinfo`, `conversion` or `continuation` records.
-    (WARCIPAddress, "WARC-IP-Address") => [String]
+    (WarcIpAddress, "WARC-IP-Address") => [String]
 }

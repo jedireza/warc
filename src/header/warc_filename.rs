@@ -12,5 +12,5 @@ header! {
     ///
     /// The `WARC-Filename` field may be used in `warcinfo` type records and shall
     /// not be used for other record types.
-    (WARCFilename, "WARC-Filename") => [String]
+    (WarcFilename, "WARC-Filename") => [String]
 }

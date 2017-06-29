@@ -19,5 +19,5 @@ header! {
     ///
     /// See the section below, Record Segmentation, for full details on the use of
     /// WARC record segmentation.
-    (WARCSegmentNumber, "WARC-Segment-Number") => [u64]
+    (WarcSegmentNumber, "WARC-Segment-Number") => [u64]
 }

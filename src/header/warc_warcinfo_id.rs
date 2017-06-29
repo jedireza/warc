@@ -21,5 +21,5 @@ header! {
     ///
     /// The `WARC-Warcinfo-ID` field may be used in any record type except
     /// `warcinfo`.
-    (WARCWarcinfoID, "WARC-Warcinfo-ID") => [String]
+    (WarcWarcinfoID, "WARC-Warcinfo-ID") => [String]
 }
