@@ -1,5 +1,10 @@
 //! A WARC (Web ARChive) library
 
-mod warc_record;
+pub mod header;
+mod record;
+mod record_type;
+mod truncated_type;
 
-pub use warc_record::WarcRecord;
+pub use record::WarcRecord;
+pub use record_type::WarcRecordType;
+pub use truncated_type::WarcTruncatedType;

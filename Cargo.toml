@@ -8,5 +8,9 @@ documentation = "https://docs.rs/crate/warc/"
 license = "MIT"
 authors = ["Reza Akhavan <reza@akhavan.me>"]
 keywords = ["warc", "web", "archive"]
+edition = "2018"
 
 [dependencies]
+chrono = "0.4.11"
+http = "0.2.1"
+uuid = { version = "0.8.1", features = ["v4"] }
