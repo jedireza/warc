@@ -1,4 +1,3 @@
-use crate::WarcVersion;
 use http::header::HeaderMap;
 use nom::{
     bytes::complete::{tag, take_while1},
@@ -8,9 +7,8 @@ use nom::{
     IResult,
 };
 
-fn version(input: &str) -> IResult<&str, WarcVersion> {
-    let (input, ver) = delimited(tag("WARC/"), not_line_ending, line_ending)(input)?;
-    Ok((input, WarcVersion(ver)))
+fn version(input: &str) -> IResult<&str, &str> {
+    delimited(tag("WARC/"), not_line_ending, line_ending)(input)
 }
 
 fn is_header_token_char(chr: char) -> bool {
@@ -66,25 +64,18 @@ fn header_pair(input: &str) -> IResult<&str, (&str, &str)> {
 #[cfg(test)]
 mod tests {
     use super::{header_pair, version};
-    use crate::WarcVersion;
     use nom::error::ErrorKind;
     use nom::Err;
 
     #[test]
     fn parse_version() {
-        assert_eq!(
-            version(&"WARC/0.0\r\n"[..]),
-            Ok((&""[..], WarcVersion("0.0")))
-        );
+        assert_eq!(version(&"WARC/0.0\r\n"[..]), Ok((&""[..], "0.0")));
 
-        assert_eq!(
-            version(&"WARC/1.0\r\n"[..]),
-            Ok((&""[..], WarcVersion("1.0")))
-        );
+        assert_eq!(version(&"WARC/1.0\r\n"[..]), Ok((&""[..], "1.0")));
 
         assert_eq!(
             version(&"WARC/2.0-alpha\r\n"[..]),
-            Ok((&""[..], WarcVersion("2.0-alpha")))
+            Ok((&""[..], "2.0-alpha"))
         );
     }
 

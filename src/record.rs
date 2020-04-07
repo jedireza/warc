@@ -1,51 +1,24 @@
-use crate::header::{CONTENT_LENGTH, WARC_DATE, WARC_RECORD_ID, WARC_TYPE};
-use crate::WarcVersion;
-use chrono::Utc;
-use http::header::HeaderMap;
 use std::fmt;
 use uuid::Uuid;
 
 pub struct WarcRecord<'a> {
-    pub version: WarcVersion<'a>,
-    pub headers: HeaderMap,
+    pub version: &'a str,
+    pub headers: Vec<(&'a str, &'a str)>,
     pub body: &'a [u8],
 }
 
 impl<'a> WarcRecord<'a> {
-    pub fn new() -> Self {
-        let mut record = WarcRecord {
-            version: WarcVersion("1.0"),
-            headers: HeaderMap::new(),
-            body: &[],
-        };
-
-        let id = format!("<{}>", Uuid::new_v4().to_urn());
-
-        record.headers.insert(WARC_RECORD_ID, id.parse().unwrap());
-        record.headers.insert(CONTENT_LENGTH, "0".parse().unwrap());
-        record
-            .headers
-            .insert(WARC_TYPE, "undefined".parse().unwrap());
-        record
-            .headers
-            .insert(WARC_DATE, Utc::now().to_string().parse().unwrap());
-
-        record
-    }
-
-    pub fn set_body(&mut self, body: &'a [u8]) {
-        self.headers
-            .insert(CONTENT_LENGTH, body.len().to_string().parse().unwrap());
-        self.body = body;
+    pub fn uuid() -> String {
+        format!("<{}>", Uuid::new_v4().to_urn())
     }
 }
 
 impl<'a> fmt::Display for WarcRecord<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "\n{}", &self.version)?;
+        writeln!(f, "WARC/{}", &self.version)?;
 
         for (key, value) in self.headers.iter() {
-            println!("{}: {}", key.to_string(), value.to_str().unwrap());
+            println!("{}: {}", key, value);
         }
 
         if self.body.len() > 0 {
@@ -61,38 +34,41 @@ impl<'a> fmt::Display for WarcRecord<'a> {
 #[cfg(test)]
 mod tests {
     use crate::header::{CONTENT_LENGTH, WARC_TYPE};
-    use crate::WarcRecord;
-    use crate::WarcRecordType;
+    use crate::{WarcRecord, WarcRecordType};
 
     #[test]
     fn create_new() {
-        let record = WarcRecord::new();
+        let record = WarcRecord {
+            version: "1.0",
+            headers: vec![],
+            body: &[],
+        };
 
         assert_eq!(record.body.len(), 0);
-        assert_eq!(record.headers[CONTENT_LENGTH], "0");
-        assert_eq!(record.headers[WARC_TYPE], "undefined");
     }
 
     #[test]
     fn set_headers() {
-        let mut record = WarcRecord::new();
-        record.headers.insert(
-            WARC_TYPE,
-            WarcRecordType::WarcInfo.to_string().parse().unwrap(),
-        );
+        let mut record = WarcRecord {
+            version: "1.0",
+            headers: vec![],
+            body: &[],
+        };
 
-        assert_eq!(
-            record.headers[WARC_TYPE],
-            WarcRecordType::WarcInfo.to_string()
-        );
+        let warc_type = WarcRecordType::WarcInfo.to_string();
+        record.headers.push((WARC_TYPE, warc_type.as_str()));
+
+        assert_eq!(record.headers.len(), 1);
     }
 
     #[test]
     fn set_body() {
-        let mut record = WarcRecord::new();
-        record.set_body("hello world! 👋".as_bytes());
+        let mut record = WarcRecord {
+            version: "1.0",
+            headers: vec![],
+            body: "hello world! 👋".as_bytes(),
+        };
 
         assert_eq!(record.body, "hello world! 👋".as_bytes());
-        assert_eq!(record.headers[CONTENT_LENGTH], "17");
     }
 }
