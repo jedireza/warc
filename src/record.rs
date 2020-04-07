@@ -1,19 +1,20 @@
 use crate::header::{CONTENT_LENGTH, WARC_DATE, WARC_RECORD_ID, WARC_TYPE};
+use crate::WarcVersion;
 use chrono::Utc;
 use http::header::HeaderMap;
 use std::fmt;
 use uuid::Uuid;
 
-pub struct WarcRecord {
-    pub version: Vec<u8>,
+pub struct WarcRecord<'a> {
+    pub version: WarcVersion<'a>,
     pub headers: HeaderMap,
     pub body: Vec<u8>,
 }
 
-impl WarcRecord {
+impl<'a> WarcRecord<'a> {
     pub fn new() -> Self {
         let mut record = WarcRecord {
-            version: "WARC/1.0".to_owned().into_bytes(),
+            version: WarcVersion("1.0"),
             headers: HeaderMap::new(),
             body: Vec::new(),
         };
@@ -39,9 +40,9 @@ impl WarcRecord {
     }
 }
 
-impl fmt::Display for WarcRecord {
+impl<'a> fmt::Display for WarcRecord<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "\n{}", String::from_utf8_lossy(&self.version))?;
+        writeln!(f, "\n{}", &self.version)?;
 
         for (key, value) in self.headers.iter() {
             println!("{}: {}", key.to_string(), value.to_str().unwrap());

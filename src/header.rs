@@ -9,7 +9,7 @@ macro_rules! warc_headers {
             $(#[$docs])*
             pub const $upcase: &'static str = $name;
         )+
-        }
+    }
 }
 
 // Generate constants for all warc headers.
