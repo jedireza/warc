@@ -8,7 +8,7 @@ use uuid::Uuid;
 pub struct WarcRecord<'a> {
     pub version: WarcVersion<'a>,
     pub headers: HeaderMap,
-    pub body: Vec<u8>,
+    pub body: &'a [u8],
 }
 
 impl<'a> WarcRecord<'a> {
@@ -16,7 +16,7 @@ impl<'a> WarcRecord<'a> {
         let mut record = WarcRecord {
             version: WarcVersion("1.0"),
             headers: HeaderMap::new(),
-            body: Vec::new(),
+            body: &[],
         };
 
         let id = format!("<{}>", Uuid::new_v4().to_urn());
@@ -33,7 +33,7 @@ impl<'a> WarcRecord<'a> {
         record
     }
 
-    pub fn set_body(&mut self, body: Vec<u8>) {
+    pub fn set_body(&mut self, body: &'a [u8]) {
         self.headers
             .insert(CONTENT_LENGTH, body.len().to_string().parse().unwrap());
         self.body = body;
@@ -49,7 +49,7 @@ impl<'a> fmt::Display for WarcRecord<'a> {
         }
 
         if self.body.len() > 0 {
-            writeln!(f, "\n{}", String::from_utf8_lossy(&self.body))?;
+            writeln!(f, "\n{}", String::from_utf8_lossy(self.body))?;
         }
 
         writeln!(f, "")?;
@@ -90,9 +90,9 @@ mod tests {
     #[test]
     fn set_body() {
         let mut record = WarcRecord::new();
-        record.set_body("hello world! 👋".to_owned().into_bytes());
+        record.set_body("hello world! 👋".as_bytes());
 
-        assert_eq!(record.body, "hello world! 👋".to_owned().into_bytes());
+        assert_eq!(record.body, "hello world! 👋".as_bytes());
         assert_eq!(record.headers[CONTENT_LENGTH], "17");
     }
 }

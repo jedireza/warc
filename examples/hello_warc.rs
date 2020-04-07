@@ -10,7 +10,7 @@ fn main() {
     record
         .headers
         .insert(WARC_IP_ADDRESS, "127.0.0.1".parse().unwrap());
-    record.set_body("hello warc! 👋".to_owned().into_bytes());
+    record.set_body("hello warc! 👋".as_bytes());
 
     println!("{}", record);
 }
