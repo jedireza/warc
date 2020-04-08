@@ -1,3 +1,5 @@
+pub type WarcHeaders<'a> = Vec<(&'a str, &'a str)>;
+
 macro_rules! warc_headers {
     (
         $(

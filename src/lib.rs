@@ -6,6 +6,7 @@ mod record;
 mod record_type;
 mod truncated_type;
 
+pub use header::WarcHeaders;
 pub use record::WarcRecord;
 pub use record_type::WarcRecordType;
 pub use truncated_type::WarcTruncatedType;

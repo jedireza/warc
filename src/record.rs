@@ -1,10 +1,12 @@
+use crate::WarcHeaders;
 use chrono::Utc;
 use std::fmt;
 use uuid::Uuid;
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct WarcRecord<'a> {
     pub version: &'a str,
-    pub headers: Vec<(&'a str, &'a str)>,
+    pub headers: WarcHeaders<'a>,
     pub body: &'a [u8],
 }
 
@@ -38,7 +40,7 @@ impl<'a> fmt::Display for WarcRecord<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::header::{CONTENT_LENGTH, WARC_TYPE};
+    use crate::header::WARC_TYPE;
     use crate::{WarcRecord, WarcRecordType};
 
     #[test]
