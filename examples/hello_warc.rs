@@ -1,22 +1,22 @@
-use chrono::Utc;
 use warc::header::{WARC_DATE, WARC_IP_ADDRESS, WARC_RECORD_ID, WARC_TYPE};
 use warc::{WarcRecord, WarcRecordType};
 
 fn main() {
-    let mut record = WarcRecord {
-        version: "1.0",
-        headers: vec![],
-        body: "hello warc! 👋".as_bytes(),
-    };
-
     let id = WarcRecord::uuid();
     let warc_type = WarcRecordType::WarcInfo.to_string();
-    let date = Utc::now().to_string();
+    let ip_addr = "127.0.0.1".to_owned();
+    let date = WarcRecord::now();
 
-    record.headers.push((WARC_RECORD_ID, id.as_str()));
-    record.headers.push((WARC_TYPE, warc_type.as_str()));
-    record.headers.push((WARC_IP_ADDRESS, "127.0.0.1"));
-    record.headers.push((WARC_DATE, date.as_str()));
+    let record = WarcRecord {
+        version: "1.0",
+        headers: vec![
+            (WARC_RECORD_ID, id.as_str()),
+            (WARC_TYPE, warc_type.as_str()),
+            (WARC_IP_ADDRESS, ip_addr.as_str()),
+            (WARC_DATE, date.as_str()),
+        ],
+        body: "hello warc! 👋".as_bytes(),
+    };
 
     println!("{}", record);
 }

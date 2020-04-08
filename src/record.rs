@@ -1,3 +1,4 @@
+use chrono::Utc;
 use std::fmt;
 use uuid::Uuid;
 
@@ -10,6 +11,10 @@ pub struct WarcRecord<'a> {
 impl<'a> WarcRecord<'a> {
     pub fn uuid() -> String {
         format!("<{}>", Uuid::new_v4().to_urn())
+    }
+
+    pub fn now() -> String {
+        format!("{}", Utc::now())
     }
 }
 
@@ -37,7 +42,7 @@ mod tests {
     use crate::{WarcRecord, WarcRecordType};
 
     #[test]
-    fn create_new() {
+    fn create() {
         let record = WarcRecord {
             version: "1.0",
             headers: vec![],
@@ -48,27 +53,14 @@ mod tests {
     }
 
     #[test]
-    fn set_headers() {
-        let mut record = WarcRecord {
+    fn create_with_headers() {
+        let warc_type = WarcRecordType::WarcInfo.to_string();
+        let record = WarcRecord {
             version: "1.0",
-            headers: vec![],
+            headers: vec![(WARC_TYPE, warc_type.as_str())],
             body: &[],
         };
 
-        let warc_type = WarcRecordType::WarcInfo.to_string();
-        record.headers.push((WARC_TYPE, warc_type.as_str()));
-
         assert_eq!(record.headers.len(), 1);
-    }
-
-    #[test]
-    fn set_body() {
-        let mut record = WarcRecord {
-            version: "1.0",
-            headers: vec![],
-            body: "hello world! 👋".as_bytes(),
-        };
-
-        assert_eq!(record.body, "hello world! 👋".as_bytes());
     }
 }
