@@ -11,8 +11,8 @@ fn main() {
         headers: vec![
             (WARC_RECORD_ID, id.as_bytes()),
             (WARC_TYPE, warc_type.as_bytes()),
-            (WARC_IP_ADDRESS, b"127.0.0.1"),
             (WARC_DATE, date.as_bytes()),
+            (WARC_IP_ADDRESS, b"127.0.0.1"),
         ],
         body: "hello warc! 👋".as_bytes(),
     };
