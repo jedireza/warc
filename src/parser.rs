@@ -1,7 +1,7 @@
 use crate::{WarcHeaders, WarcRecord};
 use nom::{
-    bytes::complete::{tag, take, take_while1},
-    character::complete::{line_ending, not_line_ending, space0},
+    bytes::streaming::{tag, take, take_while1},
+    character::streaming::{line_ending, not_line_ending, space0},
     error::ErrorKind,
     multi::many1,
     sequence::{delimited, tuple},
@@ -113,6 +113,7 @@ mod tests {
     use crate::{WarcHeaders, WarcRecord};
     use nom::error::ErrorKind;
     use nom::Err;
+    use nom::Needed;
 
     #[test]
     fn version_parsing() {
@@ -143,12 +144,31 @@ mod tests {
 
         assert_eq!(
             header_pair(&b"incomplete-header : missing-line-ending"[..]),
-            Err(Err::Error((&b""[..], ErrorKind::CrLf)))
+            Err(Err::Incomplete(Needed::Unknown))
         );
     }
 
     #[test]
     fn headers_parsing() {
+        let raw_invalid = b"\
+            content-length: R2D2\r\n\
+            that: is not\r\n\
+            a-valid: content-type\r\n\
+            \r\n\
+        ";
+
+        assert_eq!(
+            headers(&raw_invalid[..]),
+            Err(Err::Error((&b"\r\n"[..], ErrorKind::Verify)))
+        );
+
+        let raw = b"\
+            content-length: 42\r\n\
+            foo: is fantastic\r\n\
+            bar: is beautiful\r\n\
+            baz: is bananas\r\n\
+            \r\n\
+        ";
         let expected_headers: WarcHeaders = vec![
             ("content-length", b"42"),
             ("foo", b"is fantastic"),
@@ -158,8 +178,8 @@ mod tests {
         let expected_len = 42;
 
         assert_eq!(
-            headers(&b"content-length: 42\r\nfoo: is fantastic\r\nbar: is beautiful\r\nbaz: is bananas\r\n"[..]),
-            Ok((&b""[..], (expected_headers, expected_len)))
+            headers(&raw[..]),
+            Ok((&b"\r\n"[..], (expected_headers, expected_len)))
         );
     }
 
