@@ -11,11 +11,11 @@ pub struct WarcRecord<'a> {
 }
 
 impl<'a> WarcRecord<'a> {
-    pub fn uuid() -> String {
+    pub fn make_uuid() -> String {
         format!("<{}>", Uuid::new_v4().to_urn())
     }
 
-    pub fn now() -> String {
+    pub fn make_date() -> String {
         format!("{}", Utc::now())
     }
 }

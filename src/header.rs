@@ -1,4 +1,5 @@
-pub type WarcHeaders<'a> = Vec<(&'a str, &'a [u8])>;
+pub type WarcHeaders<'a> = Vec<WarcHeader<'a>>;
+pub type WarcHeader<'a> = (&'a str, &'a [u8]);
 
 macro_rules! warc_headers {
     (

@@ -9,11 +9,11 @@ use nom::{
 };
 use std::str;
 
-pub fn version(input: &[u8]) -> IResult<&[u8], &[u8]> {
+fn version(input: &[u8]) -> IResult<&[u8], &[u8]> {
     delimited(tag("WARC/"), not_line_ending, line_ending)(input)
 }
 
-pub fn is_header_token_char(chr: u8) -> bool {
+fn is_header_token_char(chr: u8) -> bool {
     match chr {
         0..=31
         | 128..=255
@@ -39,7 +39,7 @@ pub fn is_header_token_char(chr: u8) -> bool {
     }
 }
 
-pub fn header_pair(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
+fn header_pair(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
     let (input, (token, _, _, _, value, _)) = tuple((
         take_while1(is_header_token_char),
         space0,
@@ -52,7 +52,7 @@ pub fn header_pair(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
     Ok((input, (token, value)))
 }
 
-pub fn headers(input: &[u8]) -> IResult<&[u8], (WarcHeaders, usize)> {
+fn headers(input: &[u8]) -> IResult<&[u8], (WarcHeaders, usize)> {
     let (input, pairs) = many1(header_pair)(input)?;
 
     let mut content_length: Option<usize> = None;
