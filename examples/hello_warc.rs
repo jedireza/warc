@@ -18,5 +18,5 @@ fn main() {
         body: "hello warc! 👋".as_bytes(),
     };
 
-    println!("{}", record);
+    print!("{}", record);
 }
