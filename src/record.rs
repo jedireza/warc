@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct WarcRecord<'a> {
-    pub version: &'a str,
+    pub version: &'a [u8],
     pub headers: WarcHeaders<'a>,
     pub body: &'a [u8],
 }
@@ -22,10 +22,10 @@ impl<'a> WarcRecord<'a> {
 
 impl<'a> fmt::Display for WarcRecord<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "WARC/{}", &self.version)?;
+        writeln!(f, "WARC/{}", String::from_utf8_lossy(self.version))?;
 
         for (key, value) in self.headers.iter() {
-            println!("{}: {}", key, value);
+            println!("{}: {}", key, String::from_utf8_lossy(value));
         }
 
         if self.body.len() > 0 {
@@ -46,7 +46,7 @@ mod tests {
     #[test]
     fn create() {
         let record = WarcRecord {
-            version: "1.0",
+            version: "1.0".as_bytes(),
             headers: vec![],
             body: &[],
         };
@@ -58,8 +58,8 @@ mod tests {
     fn create_with_headers() {
         let warc_type = WarcRecordType::WarcInfo.to_string();
         let record = WarcRecord {
-            version: "1.0",
-            headers: vec![(WARC_TYPE, warc_type.as_str())],
+            version: "1.0".as_bytes(),
+            headers: vec![(WARC_TYPE, warc_type.as_bytes())],
             body: &[],
         };
 

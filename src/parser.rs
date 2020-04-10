@@ -7,13 +7,14 @@ use nom::{
     sequence::{delimited, tuple},
     IResult,
 };
+use std::str;
 
-pub fn version(input: &str) -> IResult<&str, &str> {
+pub fn version(input: &[u8]) -> IResult<&[u8], &[u8]> {
     delimited(tag("WARC/"), not_line_ending, line_ending)(input)
 }
 
-pub fn is_header_token_char(chr: char) -> bool {
-    match chr as u8 {
+pub fn is_header_token_char(chr: u8) -> bool {
+    match chr {
         0..=31
         | 128..=255
         | b'('
@@ -38,7 +39,7 @@ pub fn is_header_token_char(chr: char) -> bool {
     }
 }
 
-pub fn header_pair(input: &str) -> IResult<&str, (&str, &str)> {
+pub fn header_pair(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
     let (input, (token, _, _, _, value, _)) = tuple((
         take_while1(is_header_token_char),
         space0,
@@ -51,14 +52,29 @@ pub fn header_pair(input: &str) -> IResult<&str, (&str, &str)> {
     Ok((input, (token, value)))
 }
 
-pub fn headers(input: &str) -> IResult<&str, (WarcHeaders, usize)> {
+pub fn headers(input: &[u8]) -> IResult<&[u8], (WarcHeaders, usize)> {
     let (input, pairs) = many1(header_pair)(input)?;
 
     let mut content_length: Option<usize> = None;
     let mut headers: WarcHeaders = Vec::with_capacity(pairs.len());
+
     for pair in pairs {
-        if content_length == None && pair.0.to_lowercase() == "content-length" {
-            match pair.1.parse::<usize>() {
+        let key_str = match str::from_utf8(pair.0) {
+            Err(_) => {
+                return Err(nom::Err::Error((input, ErrorKind::Verify)));
+            }
+            Ok(key) => key,
+        };
+
+        if content_length == None && key_str.to_lowercase() == "content-length" {
+            let value_str = match str::from_utf8(pair.1) {
+                Err(_) => {
+                    return Err(nom::Err::Error((input, ErrorKind::Verify)));
+                }
+                Ok(value) => value,
+            };
+
+            match value_str.parse::<usize>() {
                 Err(_) => {
                     return Err(nom::Err::Error((input, ErrorKind::Verify)));
                 }
@@ -68,7 +84,7 @@ pub fn headers(input: &str) -> IResult<&str, (WarcHeaders, usize)> {
             }
         }
 
-        headers.push((pair.0, pair.1));
+        headers.push((key_str, pair.1));
     }
 
     if content_length == None {
@@ -78,13 +94,14 @@ pub fn headers(input: &str) -> IResult<&str, (WarcHeaders, usize)> {
     Ok((input, (headers, content_length.unwrap())))
 }
 
-pub fn record(input: &str) -> IResult<&str, WarcRecord> {
+pub fn record(input: &[u8]) -> IResult<&[u8], WarcRecord> {
     let (input, (version, headers, _)) = tuple((version, headers, line_ending))(input)?;
     let (input, (body, _, _)) = tuple((take(headers.1), line_ending, line_ending))(input)?;
+
     let record = WarcRecord {
         version: version,
         headers: headers.0,
-        body: body.as_bytes(),
+        body: body,
     };
 
     Ok((input, record))
@@ -99,53 +116,56 @@ mod tests {
 
     #[test]
     fn version_parsing() {
-        assert_eq!(version(&"WARC/0.0\r\n"[..]), Ok((&""[..], "0.0")));
+        assert_eq!(version(&b"WARC/0.0\r\n"[..]), Ok((&b""[..], &b"0.0"[..])));
 
-        assert_eq!(version(&"WARC/1.0\r\n"[..]), Ok((&""[..], "1.0")));
+        assert_eq!(version(&b"WARC/1.0\r\n"[..]), Ok((&b""[..], &b"1.0"[..])));
 
         assert_eq!(
-            version(&"WARC/2.0-alpha\r\n"[..]),
-            Ok((&""[..], "2.0-alpha"))
+            version(&b"WARC/2.0-alpha\r\n"[..]),
+            Ok((&b""[..], &b"2.0-alpha"[..]))
         );
     }
 
     #[test]
     fn header_pair_parsing() {
         assert_eq!(
-            header_pair(&"some-header: all/the/things\r\n"[..]),
-            Ok((&""[..], (&"some-header"[..], &"all/the/things"[..])))
+            header_pair(&b"some-header: all/the/things\r\n"[..]),
+            Ok((&b""[..], (&b"some-header"[..], &b"all/the/things"[..])))
         );
 
         assert_eq!(
-            header_pair(&"another-header : with extra spaces\n"[..]),
-            Ok((&""[..], (&"another-header"[..], &"with extra spaces"[..])))
+            header_pair(&b"another-header : with extra spaces\n"[..]),
+            Ok((
+                &b""[..],
+                (&b"another-header"[..], &b"with extra spaces"[..])
+            ))
         );
 
         assert_eq!(
-            header_pair(&"incomplete-header : missing-line-ending"[..]),
-            Err(Err::Error((&""[..], ErrorKind::CrLf)))
+            header_pair(&b"incomplete-header : missing-line-ending"[..]),
+            Err(Err::Error((&b""[..], ErrorKind::CrLf)))
         );
     }
 
     #[test]
     fn headers_parsing() {
         let expected_headers: WarcHeaders = vec![
-            ("content-length", "42"),
-            ("foo", "is fantastic"),
-            ("bar", "is beautiful"),
-            ("baz", "is bananas"),
+            ("content-length", b"42"),
+            ("foo", b"is fantastic"),
+            ("bar", b"is beautiful"),
+            ("baz", b"is bananas"),
         ];
         let expected_len = 42;
 
         assert_eq!(
-            headers(&"content-length: 42\r\nfoo: is fantastic\r\nbar: is beautiful\r\nbaz: is bananas\r\n"[..]),
-            Ok((&""[..], (expected_headers, expected_len)))
+            headers(&b"content-length: 42\r\nfoo: is fantastic\r\nbar: is beautiful\r\nbaz: is bananas\r\n"[..]),
+            Ok((&b""[..], (expected_headers, expected_len)))
         );
     }
 
     #[test]
     fn parse_record() {
-        let raw = "\
+        let raw = b"\
             WARC/1.0\r\n\
             Warc-Type: dunno\r\n\
             Content-Length: 5\r\n\
@@ -155,11 +175,11 @@ mod tests {
         ";
 
         let expected = WarcRecord {
-            version: "1.0",
-            headers: vec![("Warc-Type", "dunno"), ("Content-Length", "5")],
+            version: b"1.0",
+            headers: vec![("Warc-Type", b"dunno"), ("Content-Length", b"5")],
             body: b"12345",
         };
 
-        assert_eq!(record(&raw[..]), Ok((&""[..], expected)));
+        assert_eq!(record(&raw[..]), Ok((&b""[..], expected)));
     }
 }

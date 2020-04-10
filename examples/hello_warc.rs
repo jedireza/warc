@@ -8,12 +8,12 @@ fn main() {
     let date = WarcRecord::now();
 
     let record = WarcRecord {
-        version: "1.0",
+        version: b"1.0",
         headers: vec![
-            (WARC_RECORD_ID, id.as_str()),
-            (WARC_TYPE, warc_type.as_str()),
-            (WARC_IP_ADDRESS, ip_addr.as_str()),
-            (WARC_DATE, date.as_str()),
+            (WARC_RECORD_ID, id.as_bytes()),
+            (WARC_TYPE, warc_type.as_bytes()),
+            (WARC_IP_ADDRESS, ip_addr.as_bytes()),
+            (WARC_DATE, date.as_bytes()),
         ],
         body: "hello warc! 👋".as_bytes(),
     };
