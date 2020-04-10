@@ -153,7 +153,7 @@ mod tests {
         let raw_invalid = b"\
             content-length: R2D2\r\n\
             that: is not\r\n\
-            a-valid: content-type\r\n\
+            a-valid: content-length\r\n\
             \r\n\
         ";
 
