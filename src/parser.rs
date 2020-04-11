@@ -59,14 +59,14 @@ fn headers(input: &[u8]) -> IResult<&[u8], (WarcHeaders, usize)> {
     let mut warc_headers: WarcHeaders = Vec::with_capacity(headers.len());
 
     for header in headers {
-        let key_str = match str::from_utf8(header.0) {
+        let token_str = match str::from_utf8(header.0) {
             Err(_) => {
                 return Err(nom::Err::Error((input, ErrorKind::Verify)));
             }
-            Ok(key) => key,
+            Ok(token) => token,
         };
 
-        if content_length == None && key_str.to_lowercase() == "content-length" {
+        if content_length == None && token_str.to_lowercase() == "content-length" {
             let value_str = match str::from_utf8(header.1) {
                 Err(_) => {
                     return Err(nom::Err::Error((input, ErrorKind::Verify)));
@@ -85,7 +85,7 @@ fn headers(input: &[u8]) -> IResult<&[u8], (WarcHeaders, usize)> {
         }
 
         warc_headers.push(WarcHeader {
-            key: key_str,
+            token: token_str,
             value: header.1,
             delim_left: header.2,
             delim_right: header.3,

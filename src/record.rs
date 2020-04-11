@@ -28,7 +28,7 @@ impl<'a> fmt::Display for WarcRecord<'a> {
             writeln!(
                 f,
                 "{}: {}",
-                header.key,
+                header.token,
                 String::from_utf8_lossy(header.value)
             )?;
         }

@@ -2,16 +2,16 @@ pub type WarcHeaders<'a> = Vec<WarcHeader<'a>>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct WarcHeader<'a> {
-    pub key: &'a str,
+    pub token: &'a str,
     pub value: &'a [u8],
     pub delim_left: &'a [u8],
     pub delim_right: &'a [u8],
 }
 
 impl<'a> WarcHeader<'a> {
-    pub fn new(key: &'a str, value: &'a [u8]) -> Self {
+    pub fn new(token: &'a str, value: &'a [u8]) -> Self {
         WarcHeader {
-            key: key,
+            token: token,
             value: value,
             delim_left: "".as_bytes(),
             delim_right: " ".as_bytes(),
