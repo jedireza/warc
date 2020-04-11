@@ -1,5 +1,8 @@
 //! A WARC (Web ARChive) library
 
+mod file;
+pub use file::WarcFile;
+
 pub mod header;
 pub use header::{WarcHeader, WarcHeaders};
 
