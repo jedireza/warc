@@ -24,8 +24,13 @@ impl<'a> fmt::Display for WarcRecord<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "WARC/{}", String::from_utf8_lossy(self.version))?;
 
-        for (key, value) in self.headers.iter() {
-            writeln!(f, "{}: {}", key, String::from_utf8_lossy(value))?;
+        for header in self.headers.iter() {
+            writeln!(
+                f,
+                "{}: {}",
+                header.key,
+                String::from_utf8_lossy(header.value)
+            )?;
         }
 
         if self.body.len() > 0 {
@@ -41,7 +46,7 @@ impl<'a> fmt::Display for WarcRecord<'a> {
 #[cfg(test)]
 mod tests {
     use crate::header::WARC_TYPE;
-    use crate::{WarcRecord, WarcRecordType};
+    use crate::{WarcHeader, WarcRecord, WarcRecordType};
 
     #[test]
     fn create() {
@@ -59,7 +64,7 @@ mod tests {
         let warc_type = WarcRecordType::WarcInfo.to_string();
         let record = WarcRecord {
             version: "1.0".as_bytes(),
-            headers: vec![(WARC_TYPE, warc_type.as_bytes())],
+            headers: vec![WarcHeader::new(WARC_TYPE, warc_type.as_bytes())],
             body: &[],
         };
 

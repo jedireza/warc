@@ -1,5 +1,5 @@
 use warc::header::{WARC_DATE, WARC_IP_ADDRESS, WARC_RECORD_ID, WARC_TYPE};
-use warc::{WarcRecord, WarcRecordType};
+use warc::{WarcHeader, WarcRecord, WarcRecordType};
 
 fn main() {
     let id = WarcRecord::make_uuid();
@@ -9,10 +9,10 @@ fn main() {
     let record = WarcRecord {
         version: b"1.0",
         headers: vec![
-            (WARC_RECORD_ID, id.as_bytes()),
-            (WARC_TYPE, warc_type.as_bytes()),
-            (WARC_DATE, date.as_bytes()),
-            (WARC_IP_ADDRESS, b"127.0.0.1"),
+            WarcHeader::new(WARC_RECORD_ID, id.as_bytes()),
+            WarcHeader::new(WARC_TYPE, warc_type.as_bytes()),
+            WarcHeader::new(WARC_DATE, date.as_bytes()),
+            WarcHeader::new(WARC_IP_ADDRESS, b"127.0.0.1"),
         ],
         body: "hello warc! 👋".as_bytes(),
     };

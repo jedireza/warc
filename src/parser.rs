@@ -1,4 +1,4 @@
-use crate::{WarcHeaders, WarcRecord};
+use crate::{WarcHeader, WarcHeaders, WarcRecord};
 use nom::{
     bytes::streaming::{tag, take, take_while1},
     character::streaming::{line_ending, not_line_ending, space0},
@@ -39,8 +39,8 @@ fn is_header_token_char(chr: u8) -> bool {
     }
 }
 
-fn header_pair(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
-    let (input, (token, _, _, _, value, _)) = tuple((
+fn header(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8], &[u8], &[u8])> {
+    let (input, (token, delim_left, _, delim_right, value, _)) = tuple((
         take_while1(is_header_token_char),
         space0,
         tag(":"),
@@ -49,17 +49,17 @@ fn header_pair(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
         line_ending,
     ))(input)?;
 
-    Ok((input, (token, value)))
+    Ok((input, (token, value, delim_left, delim_right)))
 }
 
 fn headers(input: &[u8]) -> IResult<&[u8], (WarcHeaders, usize)> {
-    let (input, pairs) = many1(header_pair)(input)?;
+    let (input, headers) = many1(header)(input)?;
 
     let mut content_length: Option<usize> = None;
-    let mut headers: WarcHeaders = Vec::with_capacity(pairs.len());
+    let mut warc_headers: WarcHeaders = Vec::with_capacity(headers.len());
 
-    for pair in pairs {
-        let key_str = match str::from_utf8(pair.0) {
+    for header in headers {
+        let key_str = match str::from_utf8(header.0) {
             Err(_) => {
                 return Err(nom::Err::Error((input, ErrorKind::Verify)));
             }
@@ -67,7 +67,7 @@ fn headers(input: &[u8]) -> IResult<&[u8], (WarcHeaders, usize)> {
         };
 
         if content_length == None && key_str.to_lowercase() == "content-length" {
-            let value_str = match str::from_utf8(pair.1) {
+            let value_str = match str::from_utf8(header.1) {
                 Err(_) => {
                     return Err(nom::Err::Error((input, ErrorKind::Verify)));
                 }
@@ -84,14 +84,19 @@ fn headers(input: &[u8]) -> IResult<&[u8], (WarcHeaders, usize)> {
             }
         }
 
-        headers.push((key_str, pair.1));
+        warc_headers.push(WarcHeader {
+            key: key_str,
+            value: header.1,
+            delim_left: header.2,
+            delim_right: header.3,
+        });
     }
 
     if content_length == None {
         content_length = Some(0);
     }
 
-    Ok((input, (headers, content_length.unwrap())))
+    Ok((input, (warc_headers, content_length.unwrap())))
 }
 
 pub fn record(input: &[u8]) -> IResult<&[u8], WarcRecord> {
@@ -109,8 +114,8 @@ pub fn record(input: &[u8]) -> IResult<&[u8], WarcRecord> {
 
 #[cfg(test)]
 mod tests {
-    use super::{header_pair, headers, record, version};
-    use crate::{WarcHeaders, WarcRecord};
+    use super::{header, headers, record, version};
+    use crate::{WarcHeader, WarcHeaders, WarcRecord};
     use nom::error::ErrorKind;
     use nom::Err;
     use nom::Needed;
@@ -130,20 +135,33 @@ mod tests {
     #[test]
     fn header_pair_parsing() {
         assert_eq!(
-            header_pair(&b"some-header: all/the/things\r\n"[..]),
-            Ok((&b""[..], (&b"some-header"[..], &b"all/the/things"[..])))
-        );
-
-        assert_eq!(
-            header_pair(&b"another-header : with extra spaces\n"[..]),
+            header(&b"some-header: all/the/things\r\n"[..]),
             Ok((
                 &b""[..],
-                (&b"another-header"[..], &b"with extra spaces"[..])
+                (
+                    &b"some-header"[..],
+                    &b"all/the/things"[..],
+                    &b""[..],
+                    &b" "[..]
+                )
             ))
         );
 
         assert_eq!(
-            header_pair(&b"incomplete-header : missing-line-ending"[..]),
+            header(&b"another-header : with extra spaces\r\n"[..]),
+            Ok((
+                &b""[..],
+                (
+                    &b"another-header"[..],
+                    &b"with extra spaces"[..],
+                    &b" "[..],
+                    &b" "[..]
+                )
+            ))
+        );
+
+        assert_eq!(
+            header(&b"incomplete-header : missing-line-ending"[..]),
             Err(Err::Incomplete(Needed::Unknown))
         );
     }
@@ -170,10 +188,10 @@ mod tests {
             \r\n\
         ";
         let expected_headers: WarcHeaders = vec![
-            ("content-length", b"42"),
-            ("foo", b"is fantastic"),
-            ("bar", b"is beautiful"),
-            ("baz", b"is bananas"),
+            WarcHeader::new("content-length", b"42"),
+            WarcHeader::new("foo", b"is fantastic"),
+            WarcHeader::new("bar", b"is beautiful"),
+            WarcHeader::new("baz", b"is bananas"),
         ];
         let expected_len = 42;
 
@@ -196,7 +214,10 @@ mod tests {
 
         let expected = WarcRecord {
             version: b"1.0",
-            headers: vec![("Warc-Type", b"dunno"), ("Content-Length", b"5")],
+            headers: vec![
+                WarcHeader::new("Warc-Type", b"dunno"),
+                WarcHeader::new("Content-Length", b"5"),
+            ],
             body: b"12345",
         };
 
