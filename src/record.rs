@@ -25,7 +25,7 @@ impl<'a> fmt::Display for WarcRecord<'a> {
         writeln!(f, "WARC/{}", String::from_utf8_lossy(self.version))?;
 
         for (key, value) in self.headers.iter() {
-            println!("{}: {}", key, String::from_utf8_lossy(value));
+            writeln!(f, "{}: {}", key, String::from_utf8_lossy(value))?;
         }
 
         if self.body.len() > 0 {
