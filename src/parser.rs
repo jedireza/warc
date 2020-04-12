@@ -1,4 +1,3 @@
-use crate::{WarcHeader, WarcHeaders, WarcRecord};
 use nom::{
     bytes::streaming::{tag, take, take_while1},
     character::streaming::{line_ending, not_line_ending, space0},
@@ -8,6 +7,23 @@ use nom::{
     IResult,
 };
 use std::str;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct WarcHeaderParsed<'a> {
+    pub token: &'a str,
+    pub value: &'a [u8],
+    pub delim_left: &'a [u8],
+    pub delim_right: &'a [u8],
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct WarcRecordParsed<'a> {
+    pub version: &'a [u8],
+    pub headers: WarcHeadersParsed<'a>,
+    pub body: &'a [u8],
+}
+
+pub type WarcHeadersParsed<'a> = Vec<WarcHeaderParsed<'a>>;
 
 fn version(input: &[u8]) -> IResult<&[u8], &[u8]> {
     delimited(tag("WARC/"), not_line_ending, line_ending)(input)
@@ -52,11 +68,11 @@ fn header(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8], &[u8], &[u8])> {
     Ok((input, (token, value, delim_left, delim_right)))
 }
 
-fn headers(input: &[u8]) -> IResult<&[u8], (WarcHeaders, usize)> {
+fn headers(input: &[u8]) -> IResult<&[u8], (WarcHeadersParsed, usize)> {
     let (input, headers) = many1(header)(input)?;
 
     let mut content_length: Option<usize> = None;
-    let mut warc_headers: WarcHeaders = Vec::with_capacity(headers.len());
+    let mut warc_headers: WarcHeadersParsed = Vec::with_capacity(headers.len());
 
     for header in headers {
         let token_str = match str::from_utf8(header.0) {
@@ -84,7 +100,7 @@ fn headers(input: &[u8]) -> IResult<&[u8], (WarcHeaders, usize)> {
             }
         }
 
-        warc_headers.push(WarcHeader {
+        warc_headers.push(WarcHeaderParsed {
             token: token_str,
             value: header.1,
             delim_left: header.2,
@@ -99,11 +115,11 @@ fn headers(input: &[u8]) -> IResult<&[u8], (WarcHeaders, usize)> {
     Ok((input, (warc_headers, content_length.unwrap())))
 }
 
-pub fn record(input: &[u8]) -> IResult<&[u8], WarcRecord> {
+pub fn record(input: &[u8]) -> IResult<&[u8], WarcRecordParsed> {
     let (input, (version, headers, _)) = tuple((version, headers, line_ending))(input)?;
     let (input, (body, _, _)) = tuple((take(headers.1), line_ending, line_ending))(input)?;
 
-    let record = WarcRecord {
+    let record = WarcRecordParsed {
         version: version,
         headers: headers.0,
         body: body,
@@ -115,7 +131,7 @@ pub fn record(input: &[u8]) -> IResult<&[u8], WarcRecord> {
 #[cfg(test)]
 mod tests {
     use super::{header, headers, record, version};
-    use crate::{WarcHeader, WarcHeaders, WarcRecord};
+    use super::{WarcHeaderParsed, WarcHeadersParsed, WarcRecordParsed};
     use nom::error::ErrorKind;
     use nom::Err;
     use nom::Needed;
@@ -187,11 +203,31 @@ mod tests {
             baz: is bananas\r\n\
             \r\n\
         ";
-        let expected_headers: WarcHeaders = vec![
-            WarcHeader::new("content-length", b"42"),
-            WarcHeader::new("foo", b"is fantastic"),
-            WarcHeader::new("bar", b"is beautiful"),
-            WarcHeader::new("baz", b"is bananas"),
+        let expected_headers: WarcHeadersParsed = vec![
+            WarcHeaderParsed {
+                token: "content-length",
+                value: b"42",
+                delim_left: b"",
+                delim_right: b" ",
+            },
+            WarcHeaderParsed {
+                token: "foo",
+                value: b"is fantastic",
+                delim_left: b"",
+                delim_right: b" ",
+            },
+            WarcHeaderParsed {
+                token: "bar",
+                value: b"is beautiful",
+                delim_left: b"",
+                delim_right: b" ",
+            },
+            WarcHeaderParsed {
+                token: "baz",
+                value: b"is bananas",
+                delim_left: b"",
+                delim_right: b" ",
+            },
         ];
         let expected_len = 42;
 
@@ -212,11 +248,21 @@ mod tests {
             \r\n\
         ";
 
-        let expected = WarcRecord {
+        let expected = WarcRecordParsed {
             version: b"1.0",
             headers: vec![
-                WarcHeader::new("Warc-Type", b"dunno"),
-                WarcHeader::new("Content-Length", b"5"),
+                WarcHeaderParsed {
+                    token: "Warc-Type",
+                    value: b"dunno",
+                    delim_left: b"",
+                    delim_right: b" ",
+                },
+                WarcHeaderParsed {
+                    token: "Content-Length",
+                    value: b"5",
+                    delim_left: b"",
+                    delim_right: b" ",
+                },
             ],
             body: b"12345",
         };

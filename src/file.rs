@@ -4,15 +4,13 @@ use std::fs::File;
 use std::io;
 use std::io::Seek;
 use std::io::Write;
-use std::marker::PhantomData;
 use std::path::Path;
 
-pub struct WarcFile<'a> {
+pub struct WarcFile {
     file: File,
-    phantom: PhantomData<&'a ()>,
 }
 
-impl<'a> WarcFile<'a> {
+impl WarcFile {
     /// Opens a file for both reading and writing, as well as creating if it doesn't already exist.
     pub fn open<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let file = fs::OpenOptions::new()
@@ -21,10 +19,7 @@ impl<'a> WarcFile<'a> {
             .create(true)
             .open(path)?;
 
-        Ok(WarcFile {
-            file: file,
-            phantom: PhantomData,
-        })
+        Ok(WarcFile { file: file })
     }
 
     /// Writes a `WarcRecord` to the end of the file. Note that this function moves the cursor.
@@ -34,20 +29,20 @@ impl<'a> WarcFile<'a> {
         let mut bytes_written = 0;
 
         bytes_written += self.file.write("WARC/".as_bytes())?;
-        bytes_written += self.file.write(record.version)?;
+        bytes_written += self.file.write(record.version.as_bytes())?;
         bytes_written += self.file.write("\r\n".as_bytes())?;
 
         for header in record.headers.iter() {
             bytes_written += self.file.write(header.token.as_bytes())?;
-            bytes_written += self.file.write(header.delim_left)?;
+            bytes_written += self.file.write(&header.delim_left)?;
             bytes_written += self.file.write(":".as_bytes())?;
-            bytes_written += self.file.write(header.delim_right)?;
-            bytes_written += self.file.write(header.value)?;
+            bytes_written += self.file.write(&header.delim_right)?;
+            bytes_written += self.file.write(&header.value)?;
             bytes_written += self.file.write("\r\n".as_bytes())?;
         }
         bytes_written += self.file.write("\r\n".as_bytes())?;
 
-        bytes_written += self.file.write(record.body)?;
+        bytes_written += self.file.write(&record.body)?;
         bytes_written += self.file.write("\r\n".as_bytes())?;
         bytes_written += self.file.write("\r\n".as_bytes())?;
 

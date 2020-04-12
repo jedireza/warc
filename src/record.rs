@@ -4,13 +4,13 @@ use std::fmt;
 use uuid::Uuid;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct WarcRecord<'a> {
-    pub version: &'a [u8],
-    pub headers: WarcHeaders<'a>,
-    pub body: &'a [u8],
+pub struct WarcRecord {
+    pub version: String,
+    pub headers: WarcHeaders,
+    pub body: Vec<u8>,
 }
 
-impl<'a> WarcRecord<'a> {
+impl WarcRecord {
     pub fn make_uuid() -> String {
         format!("<{}>", Uuid::new_v4().to_urn())
     }
@@ -20,21 +20,21 @@ impl<'a> WarcRecord<'a> {
     }
 }
 
-impl<'a> fmt::Display for WarcRecord<'a> {
+impl fmt::Display for WarcRecord {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "WARC/{}", String::from_utf8_lossy(self.version))?;
+        writeln!(f, "WARC/{}", self.version)?;
 
         for header in self.headers.iter() {
             writeln!(
                 f,
                 "{}: {}",
                 header.token,
-                String::from_utf8_lossy(header.value)
+                String::from_utf8_lossy(&header.value)
             )?;
         }
 
         if self.body.len() > 0 {
-            writeln!(f, "\n{}", String::from_utf8_lossy(self.body))?;
+            writeln!(f, "\n{}", String::from_utf8_lossy(&self.body))?;
         }
 
         writeln!(f, "")?;
@@ -51,9 +51,9 @@ mod tests {
     #[test]
     fn create() {
         let record = WarcRecord {
-            version: "1.0".as_bytes(),
+            version: "1.0".to_owned(),
             headers: vec![],
-            body: &[],
+            body: vec![],
         };
 
         assert_eq!(record.body.len(), 0);
@@ -61,11 +61,13 @@ mod tests {
 
     #[test]
     fn create_with_headers() {
-        let warc_type = WarcRecordType::WarcInfo.to_string();
         let record = WarcRecord {
-            version: "1.0".as_bytes(),
-            headers: vec![WarcHeader::new(WARC_TYPE, warc_type.as_bytes())],
-            body: &[],
+            version: "1.0".to_owned(),
+            headers: vec![WarcHeader::new(
+                WARC_TYPE,
+                WarcRecordType::WarcInfo.to_string(),
+            )],
+            body: vec![],
         };
 
         assert_eq!(record.headers.len(), 1);

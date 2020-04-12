@@ -2,19 +2,18 @@ use warc::header::{WARC_DATE, WARC_IP_ADDRESS, WARC_RECORD_ID, WARC_TYPE};
 use warc::{WarcFile, WarcHeader, WarcRecord, WarcRecordType};
 
 fn main() -> Result<(), std::io::Error> {
-    let id = WarcRecord::make_uuid();
-    let warc_type = WarcRecordType::WarcInfo.to_string();
     let date = WarcRecord::make_date();
+    let body = format!("wrote to the file on {}", date);
 
     let record = WarcRecord {
-        version: b"1.0",
+        version: "1.0".to_owned(),
         headers: vec![
-            WarcHeader::new(WARC_RECORD_ID, id.as_bytes()),
-            WarcHeader::new(WARC_TYPE, warc_type.as_bytes()),
-            WarcHeader::new(WARC_DATE, date.as_bytes()),
-            WarcHeader::new(WARC_IP_ADDRESS, b"127.0.0.1"),
+            WarcHeader::new(WARC_RECORD_ID, WarcRecord::make_uuid()),
+            WarcHeader::new(WARC_TYPE, WarcRecordType::WarcInfo.to_string()),
+            WarcHeader::new(WARC_DATE, date),
+            WarcHeader::new(WARC_IP_ADDRESS, "127.0.0.1".to_owned()),
         ],
-        body: "wrote to the file!".as_bytes(),
+        body: body.into_bytes(),
     };
 
     let mut file = WarcFile::open("warc_example.warc")?;
