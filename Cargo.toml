@@ -12,6 +12,5 @@ edition = "2018"
 
 [dependencies]
 chrono = "0.4.11"
-http = "0.2.1"
 nom = "5.1.1"
 uuid = { version = "0.8.1", features = ["v4"] }
