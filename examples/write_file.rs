@@ -14,7 +14,7 @@ fn main() -> Result<(), std::io::Error> {
             WarcHeader::new(WARC_DATE, date.as_bytes()),
             WarcHeader::new(WARC_IP_ADDRESS, b"127.0.0.1"),
         ],
-        body: "hello warc! 👋".as_bytes(),
+        body: "wrote to the file!".as_bytes(),
     };
 
     let mut file = WarcFile::open("warc_example.warc")?;

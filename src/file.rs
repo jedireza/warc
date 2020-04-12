@@ -5,7 +5,7 @@ use std::io;
 use std::io::Seek;
 use std::io::Write;
 use std::marker::PhantomData;
-use std::path;
+use std::path::Path;
 
 pub struct WarcFile<'a> {
     file: File,
@@ -14,14 +14,12 @@ pub struct WarcFile<'a> {
 
 impl<'a> WarcFile<'a> {
     /// Opens a file for both reading and writing, as well as creating if it doesn't already exist.
-    pub fn open<P: AsRef<path::Path>>(path: P) -> io::Result<Self> {
-        let mut file = fs::OpenOptions::new()
+    pub fn open<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        let file = fs::OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
             .open(path)?;
-
-        file.seek(io::SeekFrom::Start(0))?;
 
         Ok(WarcFile {
             file: file,
