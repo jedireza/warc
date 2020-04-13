@@ -1,4 +1,4 @@
-use crate::WarcHeaders;
+use crate::{WarcHeaders, WarcHeadersRef};
 use chrono::Utc;
 use std::fmt;
 use uuid::Uuid;
@@ -8,6 +8,13 @@ pub struct WarcRecord {
     pub version: String,
     pub headers: WarcHeaders,
     pub body: Vec<u8>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct WarcRecordRef<'a> {
+    pub version: &'a str,
+    pub headers: WarcHeadersRef<'a>,
+    pub body: &'a [u8],
 }
 
 impl WarcRecord {

@@ -4,12 +4,12 @@ mod file;
 pub use file::WarcFile;
 
 pub mod header;
-pub use header::{WarcHeader, WarcHeaders};
+pub use header::{WarcHeader, WarcHeaderRef, WarcHeaders, WarcHeadersRef};
 
 pub mod parser;
 
 mod record;
-pub use record::WarcRecord;
+pub use record::{WarcRecord, WarcRecordRef};
 
 mod record_type;
 pub use record_type::WarcRecordType;
