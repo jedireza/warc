@@ -6,17 +6,6 @@ pub struct WarcHeader {
     pub delim_right: Vec<u8>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct WarcHeaderRef<'a> {
-    pub token: &'a str,
-    pub value: &'a [u8],
-    pub delim_left: &'a [u8],
-    pub delim_right: &'a [u8],
-}
-
-pub type WarcHeaders = Vec<WarcHeader>;
-pub type WarcHeadersRef<'a> = Vec<WarcHeaderRef<'a>>;
-
 impl WarcHeader {
     pub fn new(token: &str, value: String) -> Self {
         WarcHeader {
@@ -26,6 +15,14 @@ impl WarcHeader {
             delim_right: vec![32],
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct WarcHeaderRef<'a> {
+    pub token: &'a str,
+    pub value: &'a [u8],
+    pub delim_left: &'a [u8],
+    pub delim_right: &'a [u8],
 }
 
 impl<'a> From<WarcHeaderRef<'a>> for WarcHeader {
@@ -38,6 +35,9 @@ impl<'a> From<WarcHeaderRef<'a>> for WarcHeader {
         }
     }
 }
+
+pub type WarcHeaders = Vec<WarcHeader>;
+pub type WarcHeadersRef<'a> = Vec<WarcHeaderRef<'a>>;
 
 macro_rules! warc_headers {
     (
