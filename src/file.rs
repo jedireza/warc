@@ -74,7 +74,10 @@ impl Iterator for WarcFile {
             }
 
             if bytes_read == 2 {
-                found_headers = true;
+                let buffer_len = header_buffer.len();
+                if &header_buffer[buffer_len - 2..] == b"\r\n" {
+                    found_headers = true;
+                }
             }
         }
 
@@ -83,8 +86,11 @@ impl Iterator for WarcFile {
                 println!("Error parsing headers: {}", err);
                 return None;
             }
-            Ok(parsed_headers) => parsed_headers.1,
+            Ok(parsed) => parsed.1,
         };
+        let version_ref = headers.0;
+        let headers_ref = headers.1;
+        let expected_body_len = headers.2;
 
         let mut body_buffer = Vec::with_capacity(1 * MB);
         let mut found_body = false;
@@ -100,23 +106,23 @@ impl Iterator for WarcFile {
 
             body_bytes_read += bytes_read;
 
-            if bytes_read == 2 && body_bytes_read == headers.2 + 4 {
+            // we expect 4 characters (\r\n\r\n) to exist after the body
+            if bytes_read == 2 && body_bytes_read == expected_body_len + 4 {
                 found_body = true;
             }
         }
 
-        let body = &body_buffer[..headers.2];
+        let body = &body_buffer[..expected_body_len];
 
         let warc_record = WarcRecord {
-            version: headers.0.to_owned(),
-            headers: headers
-                .1
+            version: version_ref.to_owned(),
+            headers: headers_ref
                 .into_iter()
-                .map(|parsed_header| WarcHeader {
-                    token: parsed_header.token.to_owned(),
-                    value: parsed_header.value.to_owned(),
-                    delim_left: parsed_header.delim_left.to_owned(),
-                    delim_right: parsed_header.delim_right.to_owned(),
+                .map(|header_ref| WarcHeader {
+                    token: header_ref.token.to_owned(),
+                    value: header_ref.value.to_owned(),
+                    delim_left: header_ref.delim_left.to_owned(),
+                    delim_right: header_ref.delim_right.to_owned(),
                 })
                 .collect(),
             body: body.to_owned(),
