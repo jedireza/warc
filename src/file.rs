@@ -118,12 +118,7 @@ impl Iterator for WarcFile {
             version: version_ref.to_owned(),
             headers: headers_ref
                 .into_iter()
-                .map(|header_ref| WarcHeader {
-                    token: header_ref.token.to_owned(),
-                    value: header_ref.value.to_owned(),
-                    delim_left: header_ref.delim_left.to_owned(),
-                    delim_right: header_ref.delim_right.to_owned(),
-                })
+                .map(|header_ref| WarcHeader::from(header_ref))
                 .collect(),
             body: body.to_owned(),
         };

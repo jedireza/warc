@@ -1,4 +1,4 @@
-use crate::{WarcHeaders, WarcHeadersRef};
+use crate::{WarcHeader, WarcHeaders, WarcHeadersRef};
 use chrono::Utc;
 use std::fmt;
 use uuid::Uuid;
@@ -24,6 +24,20 @@ impl WarcRecord {
 
     pub fn make_date() -> String {
         format!("{}", Utc::now())
+    }
+}
+
+impl<'a> From<WarcRecordRef<'a>> for WarcRecord {
+    fn from(record_ref: WarcRecordRef) -> Self {
+        WarcRecord {
+            version: record_ref.version.to_owned(),
+            headers: record_ref
+                .headers
+                .into_iter()
+                .map(|header_ref| WarcHeader::from(header_ref))
+                .collect(),
+            body: record_ref.body.to_owned(),
+        }
     }
 }
 

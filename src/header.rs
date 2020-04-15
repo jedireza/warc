@@ -28,6 +28,17 @@ impl WarcHeader {
     }
 }
 
+impl<'a> From<WarcHeaderRef<'a>> for WarcHeader {
+    fn from(header_ref: WarcHeaderRef) -> Self {
+        WarcHeader {
+            token: header_ref.token.to_owned(),
+            value: header_ref.value.to_owned(),
+            delim_left: header_ref.delim_left.to_owned(),
+            delim_right: header_ref.delim_right.to_owned(),
+        }
+    }
+}
+
 macro_rules! warc_headers {
     (
         $(
