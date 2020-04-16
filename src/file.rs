@@ -1,5 +1,5 @@
 use crate::parser;
-use crate::{WarcHeader, WarcRecord};
+use crate::{WarcRecord, WarcRecordRef};
 use std::fs;
 use std::fs::File;
 use std::io;
@@ -25,7 +25,7 @@ impl WarcFile {
         Ok(WarcFile { reader: reader })
     }
 
-    pub fn write(&mut self, record: WarcRecord) -> io::Result<usize> {
+    pub fn write(&mut self, record: &WarcRecord) -> io::Result<usize> {
         let mut bytes_written = 0;
 
         let mut file = self.reader.get_ref();
@@ -51,9 +51,38 @@ impl WarcFile {
 
         Ok(bytes_written)
     }
+
+    pub fn write_ref(&mut self, record: &WarcRecordRef) -> io::Result<usize> {
+        let mut bytes_written = 0;
+
+        let mut file = self.reader.get_ref();
+        file.seek(SeekFrom::End(0))?;
+
+        bytes_written += file.write(&[87, 65, 82, 67, 47])?;
+        bytes_written += file.write(record.version.as_bytes())?;
+        bytes_written += file.write(&[13, 10])?;
+
+        for header in record.headers.iter() {
+            bytes_written += file.write(header.token.as_bytes())?;
+            bytes_written += file.write(header.delim_left)?;
+            bytes_written += file.write(&[58])?;
+            bytes_written += file.write(header.delim_right)?;
+            bytes_written += file.write(header.value)?;
+            bytes_written += file.write(&[13, 10])?;
+        }
+        bytes_written += file.write(&[13, 10])?;
+
+        bytes_written += file.write(record.body)?;
+        bytes_written += file.write(&[13, 10])?;
+        bytes_written += file.write(&[13, 10])?;
+
+        Ok(bytes_written)
+    }
 }
 
-// TODO: better error handling throughout
+// TODO: return `Result<WarcRecord>` so consumers can get errors
+// TODO: check for deadlock scenarios; can we make these loops infinite?
+// TODO: can we recover from a corrupted record anywhere in the file?
 impl Iterator for WarcFile {
     type Item = WarcRecord;
 
@@ -93,7 +122,7 @@ impl Iterator for WarcFile {
         let expected_body_len = headers.2;
 
         let mut body_buffer = Vec::with_capacity(1 * MB);
-        let mut found_body = false;
+        let mut found_body = expected_body_len == 0;
         let mut body_bytes_read = 0;
         while !found_body {
             let bytes_read = match self.reader.read_until(b'\n', &mut body_buffer) {
@@ -106,7 +135,7 @@ impl Iterator for WarcFile {
 
             body_bytes_read += bytes_read;
 
-            // we expect 4 characters (\r\n\r\n) to exist after the body
+            // we expect 4 characters (\r\n\r\n) after the body
             if bytes_read == 2 && body_bytes_read == expected_body_len + 4 {
                 found_body = true;
             }
@@ -114,15 +143,12 @@ impl Iterator for WarcFile {
 
         let body = &body_buffer[..expected_body_len];
 
-        let warc_record = WarcRecord {
-            version: version_ref.to_owned(),
-            headers: headers_ref
-                .into_iter()
-                .map(|header_ref| WarcHeader::from(header_ref))
-                .collect(),
-            body: body.to_owned(),
+        let record_ref = WarcRecordRef {
+            version: version_ref,
+            headers: headers_ref,
+            body: body,
         };
 
-        return Some(warc_record);
+        return Some(record_ref.into());
     }
 }

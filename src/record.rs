@@ -1,4 +1,4 @@
-use crate::{WarcHeader, WarcHeaders, WarcHeadersRef};
+use crate::{WarcHeaders, WarcHeadersRef};
 use chrono::Utc;
 use std::fmt;
 use uuid::Uuid;
@@ -31,11 +31,7 @@ impl<'a> From<WarcRecordRef<'a>> for WarcRecord {
     fn from(record_ref: WarcRecordRef) -> Self {
         WarcRecord {
             version: record_ref.version.to_owned(),
-            headers: record_ref
-                .headers
-                .into_iter()
-                .map(|header_ref| WarcHeader::from(header_ref))
-                .collect(),
+            headers: WarcHeaders::from(record_ref.headers),
             body: record_ref.body.to_owned(),
         }
     }
@@ -45,14 +41,7 @@ impl fmt::Display for WarcRecord {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "WARC/{}", self.version)?;
 
-        for header in self.headers.iter() {
-            writeln!(
-                f,
-                "{}: {}",
-                header.token,
-                String::from_utf8_lossy(&header.value)
-            )?;
-        }
+        write!(f, "{}", self.headers)?;
 
         if self.body.len() > 0 {
             writeln!(f, "\n{}", String::from_utf8_lossy(&self.body))?;
@@ -67,13 +56,13 @@ impl fmt::Display for WarcRecord {
 #[cfg(test)]
 mod tests {
     use crate::header::WARC_TYPE;
-    use crate::{WarcHeader, WarcRecord, WarcRecordType};
+    use crate::{WarcHeader, WarcHeaders, WarcRecord, WarcRecordType};
 
     #[test]
     fn create() {
         let record = WarcRecord {
             version: "1.0".to_owned(),
-            headers: vec![],
+            headers: WarcHeaders::new(vec![]),
             body: vec![],
         };
 
@@ -84,10 +73,10 @@ mod tests {
     fn create_with_headers() {
         let record = WarcRecord {
             version: "1.0".to_owned(),
-            headers: vec![WarcHeader::new(
+            headers: WarcHeaders::new(vec![WarcHeader::new(
                 WARC_TYPE,
                 WarcRecordType::WarcInfo.to_string(),
-            )],
+            )]),
             body: vec![],
         };
 

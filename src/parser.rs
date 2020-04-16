@@ -66,7 +66,7 @@ pub fn headers(input: &[u8]) -> IResult<&[u8], (&str, WarcHeadersRef, usize)> {
     let (input, headers) = many1(header)(input)?;
 
     let mut content_length: Option<usize> = None;
-    let mut warc_headers: WarcHeadersRef = Vec::with_capacity(headers.len());
+    let mut warc_headers = WarcHeadersRef::with_capacity(headers.len());
 
     for header in headers {
         let token_str = match str::from_utf8(header.0) {
@@ -200,7 +200,7 @@ mod tests {
             \r\n\
         ";
         let expected_version = "1.0";
-        let expected_headers: WarcHeadersRef = vec![
+        let expected_headers = WarcHeadersRef::new(vec![
             WarcHeaderRef {
                 token: "content-length",
                 value: b"42",
@@ -225,7 +225,7 @@ mod tests {
                 delim_left: b"",
                 delim_right: b" ",
             },
-        ];
+        ]);
         let expected_len = 42;
 
         assert_eq!(
@@ -256,7 +256,7 @@ mod tests {
 
         let expected = WarcRecordRef {
             version: "1.0",
-            headers: vec![
+            headers: WarcHeadersRef::new(vec![
                 WarcHeaderRef {
                     token: "Warc-Type",
                     value: b"dunno",
@@ -269,7 +269,7 @@ mod tests {
                     delim_left: b"",
                     delim_right: b" ",
                 },
-            ],
+            ]),
             body: b"12345",
         };
 
