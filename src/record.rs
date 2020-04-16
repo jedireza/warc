@@ -31,7 +31,7 @@ impl<'a> From<WarcRecordRef<'a>> for WarcRecord {
     fn from(record_ref: WarcRecordRef) -> Self {
         WarcRecord {
             version: record_ref.version.to_owned(),
-            headers: WarcHeaders::from(record_ref.headers),
+            headers: record_ref.headers.into(),
             body: record_ref.body.to_owned(),
         }
     }

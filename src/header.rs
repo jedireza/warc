@@ -77,7 +77,7 @@ impl<'a> From<WarcHeadersRef<'a>> for WarcHeaders {
             inner: headers_ref
                 .inner
                 .into_iter()
-                .map(|header_ref| WarcHeader::from(header_ref))
+                .map(|header_ref| header_ref.into())
                 .collect(),
         }
     }

@@ -51,33 +51,6 @@ impl WarcFile {
 
         Ok(bytes_written)
     }
-
-    pub fn write_ref(&mut self, record: &WarcRecordRef) -> io::Result<usize> {
-        let mut bytes_written = 0;
-
-        let mut file = self.reader.get_ref();
-        file.seek(SeekFrom::End(0))?;
-
-        bytes_written += file.write(&[87, 65, 82, 67, 47])?;
-        bytes_written += file.write(record.version.as_bytes())?;
-        bytes_written += file.write(&[13, 10])?;
-
-        for header in record.headers.iter() {
-            bytes_written += file.write(header.token.as_bytes())?;
-            bytes_written += file.write(header.delim_left)?;
-            bytes_written += file.write(&[58])?;
-            bytes_written += file.write(header.delim_right)?;
-            bytes_written += file.write(header.value)?;
-            bytes_written += file.write(&[13, 10])?;
-        }
-        bytes_written += file.write(&[13, 10])?;
-
-        bytes_written += file.write(record.body)?;
-        bytes_written += file.write(&[13, 10])?;
-        bytes_written += file.write(&[13, 10])?;
-
-        Ok(bytes_written)
-    }
 }
 
 // TODO: return `Result<WarcRecord>` so consumers can get errors
@@ -87,7 +60,7 @@ impl Iterator for WarcFile {
     type Item = WarcRecord;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut header_buffer = Vec::with_capacity(64 * KB);
+        let mut header_buffer: Vec<u8> = Vec::with_capacity(64 * KB);
         let mut found_headers = false;
         while !found_headers {
             let bytes_read = match self.reader.read_until(b'\n', &mut header_buffer) {
@@ -121,7 +94,7 @@ impl Iterator for WarcFile {
         let headers_ref = headers.1;
         let expected_body_len = headers.2;
 
-        let mut body_buffer = Vec::with_capacity(1 * MB);
+        let mut body_buffer: Vec<u8> = Vec::with_capacity(1 * MB);
         let mut found_body = expected_body_len == 0;
         let mut body_bytes_read = 0;
         while !found_body {
@@ -141,12 +114,12 @@ impl Iterator for WarcFile {
             }
         }
 
-        let body = &body_buffer[..expected_body_len];
+        let body_ref = &body_buffer[..expected_body_len];
 
         let record_ref = WarcRecordRef {
             version: version_ref,
             headers: headers_ref,
-            body: body,
+            body: body_ref,
         };
 
         return Some(record_ref.into());
