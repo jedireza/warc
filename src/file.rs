@@ -1,10 +1,11 @@
 use crate::parser;
-use crate::{WarcRecord, WarcRecordRef};
+use crate::{WarcError, WarcRecord, WarcRecordRef};
 use std::fs;
 use std::fs::File;
 use std::io;
 use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
 use std::path::Path;
+use std::result;
 
 const KB: usize = 1_024;
 const MB: usize = 1_048_576;
@@ -53,22 +54,17 @@ impl WarcFile {
     }
 }
 
-// TODO: return `Result<WarcRecord>` so consumers can get errors
 // TODO: check for deadlock scenarios; can we make these loops infinite?
-//       - [ ] check if we `read_until(...)` and get `0` bytes read back
 // TODO: can we recover from a corrupted record anywhere in the file?
 impl Iterator for WarcFile {
-    type Item = WarcRecord;
+    type Item = result::Result<WarcRecord, WarcError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut header_buffer: Vec<u8> = Vec::with_capacity(64 * KB);
         let mut found_headers = false;
         while !found_headers {
             let bytes_read = match self.reader.read_until(b'\n', &mut header_buffer) {
-                Err(err) => {
-                    println!("Error reading buffer: {}", err);
-                    return None;
-                }
+                Err(_) => return Some(Err(WarcError::ReadData)),
                 Ok(len) => len,
             };
 
@@ -84,28 +80,26 @@ impl Iterator for WarcFile {
             }
         }
 
-        let headers = match parser::headers(&header_buffer) {
-            Err(err) => {
-                println!("Error parsing headers: {}", err);
-                return None;
-            }
+        let headers_parsed = match parser::headers(&header_buffer) {
+            Err(_) => return Some(Err(WarcError::ParseHeaders)),
             Ok(parsed) => parsed.1,
         };
-        let version_ref = headers.0;
-        let headers_ref = headers.1;
-        let expected_body_len = headers.2;
+        let version_ref = headers_parsed.0;
+        let headers_ref = headers_parsed.1;
+        let expected_body_len = headers_parsed.2;
 
         let mut body_buffer: Vec<u8> = Vec::with_capacity(1 * MB);
         let mut found_body = expected_body_len == 0;
         let mut body_bytes_read = 0;
         while !found_body {
             let bytes_read = match self.reader.read_until(b'\n', &mut body_buffer) {
-                Err(err) => {
-                    println!("Error reading buffer: {}", err);
-                    return None;
-                }
+                Err(_) => return Some(Err(WarcError::ReadData)),
                 Ok(len) => len,
             };
+
+            if bytes_read == 0 {
+                return Some(Err(WarcError::EmptyRead));
+            }
 
             body_bytes_read += bytes_read;
 
@@ -123,6 +117,6 @@ impl Iterator for WarcFile {
             body: body_ref,
         };
 
-        return Some(record_ref.into());
+        return Some(Ok(record_ref.into()));
     }
 }

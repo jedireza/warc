@@ -9,6 +9,7 @@ use nom::{
 };
 use std::str;
 
+// TODO: evaluate the use of `ErrorKind::Verify` here.
 fn version(input: &[u8]) -> IResult<&[u8], &str> {
     let (input, (_, version, _)) = tuple((tag("WARC/"), not_line_ending, line_ending))(input)?;
 
@@ -61,6 +62,7 @@ fn header(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8], &[u8], &[u8])> {
     Ok((input, (token, value, delim_left, delim_right)))
 }
 
+// TODO: evaluate the use of `ErrorKind::Verify` here.
 pub fn headers(input: &[u8]) -> IResult<&[u8], (&str, WarcHeadersRef, usize)> {
     let (input, version) = version(input)?;
     let (input, headers) = many1(header)(input)?;
@@ -102,6 +104,8 @@ pub fn headers(input: &[u8]) -> IResult<&[u8], (&str, WarcHeadersRef, usize)> {
         });
     }
 
+    // TODO: Technically if we didn't find a `content-length` header, the record is invalid. Should
+    // we be returning an error here instead?
     if content_length == None {
         content_length = Some(0);
     }
