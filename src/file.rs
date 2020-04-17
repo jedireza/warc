@@ -55,6 +55,7 @@ impl WarcFile {
 
 // TODO: return `Result<WarcRecord>` so consumers can get errors
 // TODO: check for deadlock scenarios; can we make these loops infinite?
+//       - [ ] check if we `read_until(...)` and get `0` bytes read back
 // TODO: can we recover from a corrupted record anywhere in the file?
 impl Iterator for WarcFile {
     type Item = WarcRecord;
