@@ -1,19 +1,11 @@
 use std::fmt;
 
-/// Variants for `WARCTruncated` header
-///
-/// As defined in ISO28500; section 5.13
 #[derive(Clone, Debug, PartialEq)]
 pub enum WarcTruncatedType {
-    /// `length` exceeds configured max length
     Length,
-    /// `time` exceeds configured max time
     Time,
-    /// `disconnect` network disconnect
     Disconnect,
-    /// `unspecified` other/unknown reason
     Unspecified,
-    /// future reason
     Unknown(String),
 }
 
