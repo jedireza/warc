@@ -1,7 +1,7 @@
 //! A WARC (Web ARChive) library
 
 pub mod error;
-pub use error::WarcError;
+pub use error::Error;
 
 mod file;
 pub use file::WarcFile;

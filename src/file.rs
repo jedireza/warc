@@ -1,11 +1,10 @@
 use crate::parser;
-use crate::{WarcError, WarcRecord, WarcRecordRef};
+use crate::{Error, WarcRecord, WarcRecordRef};
 use std::fs;
 use std::fs::File;
 use std::io;
 use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
 use std::path::Path;
-use std::result;
 
 const KB: usize = 1_024;
 const MB: usize = 1_048_576;
@@ -57,14 +56,14 @@ impl WarcFile {
 // TODO: check for deadlock scenarios; can we make these loops infinite?
 // TODO: can we recover from a corrupted record anywhere in the file?
 impl Iterator for WarcFile {
-    type Item = result::Result<WarcRecord, WarcError>;
+    type Item = Result<WarcRecord, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut header_buffer: Vec<u8> = Vec::with_capacity(64 * KB);
         let mut found_headers = false;
         while !found_headers {
             let bytes_read = match self.reader.read_until(b'\n', &mut header_buffer) {
-                Err(_) => return Some(Err(WarcError::ReadData)),
+                Err(_) => return Some(Err(Error::ReadData)),
                 Ok(len) => len,
             };
 
@@ -81,7 +80,7 @@ impl Iterator for WarcFile {
         }
 
         let headers_parsed = match parser::headers(&header_buffer) {
-            Err(_) => return Some(Err(WarcError::ParseHeaders)),
+            Err(_) => return Some(Err(Error::ParseHeaders)),
             Ok(parsed) => parsed.1,
         };
         let version_ref = headers_parsed.0;
@@ -91,21 +90,26 @@ impl Iterator for WarcFile {
         let mut body_buffer: Vec<u8> = Vec::with_capacity(1 * MB);
         let mut found_body = expected_body_len == 0;
         let mut body_bytes_read = 0;
+        let maximum_read_range = expected_body_len + 4;
         while !found_body {
             let bytes_read = match self.reader.read_until(b'\n', &mut body_buffer) {
-                Err(_) => return Some(Err(WarcError::ReadData)),
+                Err(_) => return Some(Err(Error::ReadData)),
                 Ok(len) => len,
             };
-
-            if bytes_read == 0 {
-                return Some(Err(WarcError::EmptyRead));
-            }
 
             body_bytes_read += bytes_read;
 
             // we expect 4 characters (\r\n\r\n) after the body
-            if bytes_read == 2 && body_bytes_read == expected_body_len + 4 {
+            if bytes_read == 2 && body_bytes_read == maximum_read_range {
                 found_body = true;
+            }
+
+            if bytes_read == 0 {
+                return Some(Err(Error::UnexpectedEOB));
+            }
+
+            if body_bytes_read > maximum_read_range {
+                return Some(Err(Error::ReadOverflow));
             }
         }
 

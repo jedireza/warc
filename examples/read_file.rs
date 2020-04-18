@@ -4,7 +4,10 @@ fn main() -> Result<(), std::io::Error> {
     let file = WarcFile::open("warc_example.warc")?;
 
     for record in file {
-        print!("{}", record.unwrap());
+        match record {
+            Err(err) => println!("ERROR: {}\r\n", err),
+            Ok(record) => print!("{}", record),
+        }
     }
 
     Ok(())

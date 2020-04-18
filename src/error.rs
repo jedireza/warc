@@ -2,28 +2,31 @@ use std::error;
 use std::fmt;
 
 #[derive(Debug)]
-pub enum WarcError {
+pub enum Error {
     ParseHeaders,
     ReadData,
-    EmptyRead,
+    UnexpectedEOB,
+    ReadOverflow,
 }
 
-impl fmt::Display for WarcError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            WarcError::ParseHeaders => write!(f, "Error parsing headers."),
-            WarcError::ReadData => write!(f, "Error reading data source."),
-            WarcError::EmptyRead => write!(f, "Unexpected empty read."),
+            Error::ParseHeaders => write!(f, "Error parsing headers."),
+            Error::ReadData => write!(f, "Error reading data source."),
+            Error::UnexpectedEOB => write!(f, "Unexpected end of body."),
+            Error::ReadOverflow => write!(f, "Read further than expected."),
         }
     }
 }
 
-impl error::Error for WarcError {
+impl error::Error for Error {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
-            WarcError::ParseHeaders => None,
-            WarcError::ReadData => None,
-            WarcError::EmptyRead => None,
+            Error::ParseHeaders => None,
+            Error::ReadData => None,
+            Error::UnexpectedEOB => None,
+            Error::ReadOverflow => None,
         }
     }
 }
