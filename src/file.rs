@@ -53,8 +53,6 @@ impl WarcFile {
     }
 }
 
-// TODO: check for deadlock scenarios; can we make these loops infinite?
-// TODO: can we recover from a corrupted record anywhere in the file?
 impl Iterator for WarcFile {
     type Item = Result<WarcRecord, Error>;
 
