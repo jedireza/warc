@@ -2,7 +2,7 @@
 
 A Rust library for reading and writing WARC files.
 
-- Docs: https://docs.rs/warc/0.1.0/
+- Docs: https://docs.rs/warc/
 - Crate: https://crates.io/crates/warc
 
 ## License
