@@ -1,15 +1,9 @@
 # WARC (Web ARChive)
 
-A Rust library for reading and writing WARC files, implementing
-[ISO28500][ISO28500].
+A Rust library for reading and writing WARC files.
 
-[ISO28500]: http://bibnum.bnf.fr/WARC/WARC_ISO_28500_version1_latestdraft.pdf
-
-
-## Work in progress
-
-The project is incomplete and the API is subject to change.
-
+- Docs: https://docs.rs/warc/0.1.0/
+- Crate: https://crates.io/crates/warc
 
 ## License
 
