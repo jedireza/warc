@@ -4,18 +4,17 @@ pub mod error;
 pub use error::Error;
 
 mod file;
-pub use file::WarcFile;
+pub use file::File;
 
 pub mod header;
-pub use header::{WarcHeader, WarcHeaderRef, WarcHeaders, WarcHeadersRef};
 
 pub mod parser;
 
 mod record;
-pub use record::{WarcRecord, WarcRecordRef};
+pub use record::Record;
 
 mod record_type;
-pub use record_type::WarcRecordType;
+pub use record_type::RecordType;
 
 mod truncated_type;
-pub use truncated_type::WarcTruncatedType;
+pub use truncated_type::TruncatedType;

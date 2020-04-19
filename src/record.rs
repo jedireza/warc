@@ -1,23 +1,16 @@
-use crate::{WarcHeaders, WarcHeadersRef};
 use chrono::Utc;
+use std::collections::HashMap;
 use std::fmt;
 use uuid::Uuid;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct WarcRecord {
+pub struct Record {
     pub version: String,
-    pub headers: WarcHeaders,
+    pub headers: HashMap<String, Vec<u8>>,
     pub body: Vec<u8>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct WarcRecordRef<'a> {
-    pub version: &'a str,
-    pub headers: WarcHeadersRef<'a>,
-    pub body: &'a [u8],
-}
-
-impl WarcRecord {
+impl Record {
     pub fn make_uuid() -> String {
         format!("<{}>", Uuid::new_v4().to_urn())
     }
@@ -27,21 +20,14 @@ impl WarcRecord {
     }
 }
 
-impl<'a> From<WarcRecordRef<'a>> for WarcRecord {
-    fn from(record_ref: WarcRecordRef) -> Self {
-        WarcRecord {
-            version: record_ref.version.to_owned(),
-            headers: record_ref.headers.into(),
-            body: record_ref.body.to_owned(),
-        }
-    }
-}
-
-impl fmt::Display for WarcRecord {
+impl fmt::Display for Record {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "WARC/{}", self.version)?;
 
-        write!(f, "{}", self.headers)?;
+        for (token, value) in self.headers.iter() {
+            writeln!(f, "{}: {}", token, String::from_utf8_lossy(value))?;
+        }
+        writeln!(f, "")?;
 
         if self.body.len() > 0 {
             writeln!(f, "\n{}", String::from_utf8_lossy(&self.body))?;
@@ -56,13 +42,14 @@ impl fmt::Display for WarcRecord {
 #[cfg(test)]
 mod tests {
     use crate::header::WARC_TYPE;
-    use crate::{WarcHeader, WarcHeaders, WarcRecord, WarcRecordType};
+    use crate::{Record, RecordType};
+    use std::collections::HashMap;
 
     #[test]
     fn create() {
-        let record = WarcRecord {
+        let record = Record {
             version: "1.0".to_owned(),
-            headers: WarcHeaders::new(vec![]),
+            headers: HashMap::new(),
             body: vec![],
         };
 
@@ -71,12 +58,14 @@ mod tests {
 
     #[test]
     fn create_with_headers() {
-        let record = WarcRecord {
+        let record = Record {
             version: "1.0".to_owned(),
-            headers: WarcHeaders::new(vec![WarcHeader::new(
-                WARC_TYPE,
-                WarcRecordType::WarcInfo.to_string(),
-            )]),
+            headers: vec![(
+                WARC_TYPE.to_owned(),
+                RecordType::WarcInfo.to_string().into_bytes(),
+            )]
+            .into_iter()
+            .collect(),
             body: vec![],
         };
 

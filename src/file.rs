@@ -1,7 +1,6 @@
 use crate::parser;
-use crate::{Error, WarcRecord, WarcRecordRef};
+use crate::{Error, Record};
 use std::fs;
-use std::fs::File;
 use std::io;
 use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
 use std::path::Path;
@@ -9,11 +8,11 @@ use std::path::Path;
 const KB: usize = 1_024;
 const MB: usize = 1_048_576;
 
-pub struct WarcFile {
-    reader: BufReader<File>,
+pub struct File {
+    reader: BufReader<fs::File>,
 }
 
-impl WarcFile {
+impl File {
     pub fn open<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let file = fs::OpenOptions::new()
             .read(true)
@@ -22,10 +21,10 @@ impl WarcFile {
             .open(&path)?;
         let reader = BufReader::with_capacity(1 * MB, file);
 
-        Ok(WarcFile { reader: reader })
+        Ok(File { reader: reader })
     }
 
-    pub fn write(&mut self, record: &WarcRecord) -> io::Result<usize> {
+    pub fn write(&mut self, record: &Record) -> io::Result<usize> {
         let mut bytes_written = 0;
 
         let mut file = self.reader.get_ref();
@@ -35,10 +34,10 @@ impl WarcFile {
         bytes_written += file.write(record.version.as_bytes())?;
         bytes_written += file.write(&[13, 10])?;
 
-        for header in record.headers.iter() {
-            bytes_written += file.write(header.token.as_bytes())?;
+        for (token, value) in record.headers.iter() {
+            bytes_written += file.write(token.as_bytes())?;
             bytes_written += file.write(&[58, 32])?;
-            bytes_written += file.write(&header.value)?;
+            bytes_written += file.write(&value)?;
             bytes_written += file.write(&[13, 10])?;
         }
         bytes_written += file.write(&[13, 10])?;
@@ -51,8 +50,8 @@ impl WarcFile {
     }
 }
 
-impl Iterator for WarcFile {
-    type Item = Result<WarcRecord, Error>;
+impl Iterator for File {
+    type Item = Result<Record, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut header_buffer: Vec<u8> = Vec::with_capacity(64 * KB);
@@ -68,8 +67,8 @@ impl Iterator for WarcFile {
             }
 
             if bytes_read == 2 {
-                let buffer_len = header_buffer.len();
-                if &header_buffer[buffer_len - 2..] == b"\r\n" {
+                let last_two_chars = header_buffer.len() - 2;
+                if &header_buffer[last_two_chars..] == b"\r\n" {
                     found_headers = true;
                 }
             }
@@ -111,12 +110,15 @@ impl Iterator for WarcFile {
 
         let body_ref = &body_buffer[..expected_body_len];
 
-        let record_ref = WarcRecordRef {
-            version: version_ref,
-            headers: headers_ref,
-            body: body_ref,
+        let record = Record {
+            version: version_ref.to_owned(),
+            headers: headers_ref
+                .into_iter()
+                .map(|(token, value)| (token.to_owned(), value.to_owned()))
+                .collect(),
+            body: body_ref.to_owned(),
         };
 
-        return Some(Ok(record_ref.into()));
+        return Some(Ok(record));
     }
 }

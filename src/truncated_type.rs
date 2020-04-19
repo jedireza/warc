@@ -1,7 +1,7 @@
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum WarcTruncatedType {
+pub enum TruncatedType {
     Length,
     Time,
     Disconnect,
@@ -9,14 +9,14 @@ pub enum WarcTruncatedType {
     Unknown(String),
 }
 
-impl fmt::Display for WarcTruncatedType {
+impl fmt::Display for TruncatedType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match *self {
-            WarcTruncatedType::Length => "length",
-            WarcTruncatedType::Time => "time",
-            WarcTruncatedType::Disconnect => "disconnect",
-            WarcTruncatedType::Unspecified => "unspecified",
-            WarcTruncatedType::Unknown(ref val) => val.as_ref(),
+            TruncatedType::Length => "length",
+            TruncatedType::Time => "time",
+            TruncatedType::Disconnect => "disconnect",
+            TruncatedType::Unspecified => "unspecified",
+            TruncatedType::Unknown(ref val) => val.as_ref(),
         })
     }
 }

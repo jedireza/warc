@@ -5,8 +5,8 @@ use std::fmt;
 pub enum Error {
     ParseHeaders,
     ReadData,
-    UnexpectedEOB,
     ReadOverflow,
+    UnexpectedEOB,
 }
 
 impl fmt::Display for Error {
@@ -14,8 +14,8 @@ impl fmt::Display for Error {
         match *self {
             Error::ParseHeaders => write!(f, "Error parsing headers."),
             Error::ReadData => write!(f, "Error reading data source."),
-            Error::UnexpectedEOB => write!(f, "Unexpected end of body."),
             Error::ReadOverflow => write!(f, "Read further than expected."),
+            Error::UnexpectedEOB => write!(f, "Unexpected end of body."),
         }
     }
 }
@@ -25,8 +25,8 @@ impl error::Error for Error {
         match *self {
             Error::ParseHeaders => None,
             Error::ReadData => None,
-            Error::UnexpectedEOB => None,
             Error::ReadOverflow => None,
+            Error::UnexpectedEOB => None,
         }
     }
 }

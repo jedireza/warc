@@ -1,7 +1,7 @@
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum WarcRecordType {
+pub enum RecordType {
     WarcInfo,
     Response,
     Resource,
@@ -13,18 +13,18 @@ pub enum WarcRecordType {
     Unknown(String),
 }
 
-impl fmt::Display for WarcRecordType {
+impl fmt::Display for RecordType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match *self {
-            WarcRecordType::WarcInfo => "warcinfo",
-            WarcRecordType::Response => "response",
-            WarcRecordType::Resource => "resource",
-            WarcRecordType::Request => "request",
-            WarcRecordType::Metadata => "metadata",
-            WarcRecordType::Revisit => "revisit",
-            WarcRecordType::Conversion => "conversion",
-            WarcRecordType::Continuation => "continuation",
-            WarcRecordType::Unknown(ref val) => val.as_ref(),
+            RecordType::WarcInfo => "warcinfo",
+            RecordType::Response => "response",
+            RecordType::Resource => "resource",
+            RecordType::Request => "request",
+            RecordType::Metadata => "metadata",
+            RecordType::Revisit => "revisit",
+            RecordType::Conversion => "conversion",
+            RecordType::Continuation => "continuation",
+            RecordType::Unknown(ref val) => val.as_ref(),
         })
     }
 }
