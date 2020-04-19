@@ -1,12 +1,20 @@
 //! A WARC (Web ARChive) library
 
-extern crate chrono;
-#[macro_use] extern crate hyper;
-extern crate uuid;
+pub mod error;
+pub use error::Error;
+
+mod file;
+pub use file::File;
 
 pub mod header;
-mod warc_record;
-mod warc_version;
 
-pub use warc_record::WarcRecord;
-pub use warc_version::WarcVersion;
+pub mod parser;
+
+mod record;
+pub use record::Record;
+
+mod record_type;
+pub use record_type::RecordType;
+
+mod truncated_type;
+pub use truncated_type::TruncatedType;
