@@ -6,8 +6,6 @@ use std::vec::IntoIter;
 pub struct WarcHeader {
     pub token: String,
     pub value: Vec<u8>,
-    pub delim_left: Vec<u8>,
-    pub delim_right: Vec<u8>,
 }
 
 impl WarcHeader {
@@ -15,8 +13,6 @@ impl WarcHeader {
         WarcHeader {
             token: token.to_owned(),
             value: value.into_bytes(),
-            delim_left: vec![],
-            delim_right: vec![32],
         }
     }
 }
@@ -38,8 +34,6 @@ impl fmt::Display for WarcHeader {
 pub struct WarcHeaderRef<'a> {
     pub token: &'a str,
     pub value: &'a [u8],
-    pub delim_left: &'a [u8],
-    pub delim_right: &'a [u8],
 }
 
 impl<'a> fmt::Display for WarcHeaderRef<'a> {
@@ -60,8 +54,6 @@ impl<'a> From<WarcHeaderRef<'a>> for WarcHeader {
         WarcHeader {
             token: header_ref.token.to_owned(),
             value: header_ref.value.to_owned(),
-            delim_left: header_ref.delim_left.to_owned(),
-            delim_right: header_ref.delim_right.to_owned(),
         }
     }
 }

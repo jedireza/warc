@@ -37,9 +37,7 @@ impl WarcFile {
 
         for header in record.headers.iter() {
             bytes_written += file.write(header.token.as_bytes())?;
-            bytes_written += file.write(&header.delim_left)?;
-            bytes_written += file.write(&[58])?;
-            bytes_written += file.write(&header.delim_right)?;
+            bytes_written += file.write(&[58, 32])?;
             bytes_written += file.write(&header.value)?;
             bytes_written += file.write(&[13, 10])?;
         }

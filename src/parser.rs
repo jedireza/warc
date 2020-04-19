@@ -49,8 +49,8 @@ fn is_header_token_char(chr: u8) -> bool {
     }
 }
 
-fn header(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8], &[u8], &[u8])> {
-    let (input, (token, delim_left, _, delim_right, value, _)) = tuple((
+fn header(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
+    let (input, (token, _, _, _, value, _)) = tuple((
         take_while1(is_header_token_char),
         space0,
         tag(":"),
@@ -59,7 +59,7 @@ fn header(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8], &[u8], &[u8])> {
         line_ending,
     ))(input)?;
 
-    Ok((input, (token, value, delim_left, delim_right)))
+    Ok((input, (token, value)))
 }
 
 // TODO: evaluate the use of `ErrorKind::Verify` here.
@@ -99,8 +99,6 @@ pub fn headers(input: &[u8]) -> IResult<&[u8], (&str, WarcHeadersRef, usize)> {
         warc_headers.push(WarcHeaderRef {
             token: token_str,
             value: header.1,
-            delim_left: header.2,
-            delim_right: header.3,
         });
     }
 
@@ -150,27 +148,14 @@ mod tests {
     fn header_pair_parsing() {
         assert_eq!(
             header(&b"some-header: all/the/things\r\n"[..]),
-            Ok((
-                &b""[..],
-                (
-                    &b"some-header"[..],
-                    &b"all/the/things"[..],
-                    &b""[..],
-                    &b" "[..]
-                )
-            ))
+            Ok((&b""[..], (&b"some-header"[..], &b"all/the/things"[..],)))
         );
 
         assert_eq!(
             header(&b"another-header : with extra spaces\r\n"[..]),
             Ok((
                 &b""[..],
-                (
-                    &b"another-header"[..],
-                    &b"with extra spaces"[..],
-                    &b" "[..],
-                    &b" "[..]
-                )
+                (&b"another-header"[..], &b"with extra spaces"[..],)
             ))
         );
 
@@ -208,26 +193,18 @@ mod tests {
             WarcHeaderRef {
                 token: "content-length",
                 value: b"42",
-                delim_left: b"",
-                delim_right: b" ",
             },
             WarcHeaderRef {
                 token: "foo",
                 value: b"is fantastic",
-                delim_left: b"",
-                delim_right: b" ",
             },
             WarcHeaderRef {
                 token: "bar",
                 value: b"is beautiful",
-                delim_left: b"",
-                delim_right: b" ",
             },
             WarcHeaderRef {
                 token: "baz",
                 value: b"is bananas",
-                delim_left: b"",
-                delim_right: b" ",
             },
         ]);
         let expected_len = 42;
@@ -264,14 +241,10 @@ mod tests {
                 WarcHeaderRef {
                     token: "Warc-Type",
                     value: b"dunno",
-                    delim_left: b"",
-                    delim_right: b" ",
                 },
                 WarcHeaderRef {
                     token: "Content-Length",
                     value: b"5",
-                    delim_left: b"",
-                    delim_right: b" ",
                 },
             ]),
             body: b"12345",
