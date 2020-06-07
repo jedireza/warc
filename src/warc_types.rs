@@ -2,18 +2,69 @@ use crate::parser;
 use crate::{Error, Record};
 use std::fs;
 use std::io;
-use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
 
 const KB: usize = 1_024;
 const MB: usize = 1_048_576;
 
-pub struct File {
-    reader: BufReader<fs::File>,
+pub struct WarcReader<R> {
+    reader: R,
 }
 
-impl File {
-    pub fn open<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+pub struct WarcWriter<W> {
+    writer: W,
+}
+
+impl<W: Write> WarcWriter<W> {
+    pub fn new(w: W) -> Self {
+        WarcWriter { writer: w }
+    }
+
+    pub fn write(&mut self, record: &Record) -> io::Result<usize> {
+        let mut bytes_written = 0;
+
+        bytes_written += self.writer.write(&[87, 65, 82, 67, 47])?;
+        bytes_written += self.writer.write(record.version.as_bytes())?;
+        bytes_written += self.writer.write(&[13, 10])?;
+
+        for (token, value) in record.headers.iter() {
+            bytes_written += self.writer.write(token.as_bytes())?;
+            bytes_written += self.writer.write(&[58, 32])?;
+            bytes_written += self.writer.write(&value)?;
+            bytes_written += self.writer.write(&[13, 10])?;
+        }
+        bytes_written += self.writer.write(&[13, 10])?;
+
+        bytes_written += self.writer.write(&record.body)?;
+        bytes_written += self.writer.write(&[13, 10])?;
+        bytes_written += self.writer.write(&[13, 10])?;
+
+        Ok(bytes_written)
+    }
+}
+
+impl WarcWriter<BufWriter<fs::File>> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(&path)?;
+        let writer = BufWriter::with_capacity(1 * MB, file);
+
+        Ok(WarcWriter::new(writer))
+    }
+}
+
+impl<R: BufRead> WarcReader<R> {
+    pub fn new(r: R) -> Self {
+        WarcReader { reader: r }
+    }
+}
+
+impl WarcReader<BufReader<fs::File>> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let file = fs::OpenOptions::new()
             .read(true)
             .write(true)
@@ -21,36 +72,11 @@ impl File {
             .open(&path)?;
         let reader = BufReader::with_capacity(1 * MB, file);
 
-        Ok(File { reader: reader })
-    }
-
-    pub fn write(&mut self, record: &Record) -> io::Result<usize> {
-        let mut bytes_written = 0;
-
-        let mut file = self.reader.get_ref();
-        file.seek(SeekFrom::End(0))?;
-
-        bytes_written += file.write(&[87, 65, 82, 67, 47])?;
-        bytes_written += file.write(record.version.as_bytes())?;
-        bytes_written += file.write(&[13, 10])?;
-
-        for (token, value) in record.headers.iter() {
-            bytes_written += file.write(token.as_bytes())?;
-            bytes_written += file.write(&[58, 32])?;
-            bytes_written += file.write(&value)?;
-            bytes_written += file.write(&[13, 10])?;
-        }
-        bytes_written += file.write(&[13, 10])?;
-
-        bytes_written += file.write(&record.body)?;
-        bytes_written += file.write(&[13, 10])?;
-        bytes_written += file.write(&[13, 10])?;
-
-        Ok(bytes_written)
+        Ok(WarcReader::new(reader))
     }
 }
 
-impl Iterator for File {
+impl<R: BufRead> Iterator for WarcReader<R> {
     type Item = Result<Record, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {

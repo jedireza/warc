@@ -3,8 +3,8 @@
 mod error;
 pub use error::Error;
 
-mod file;
-pub use file::File;
+pub mod warc_types;
+pub use warc_types::{WarcReader, WarcWriter};
 
 pub mod header;
 

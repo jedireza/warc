@@ -1,5 +1,5 @@
 use warc::header::{CONTENT_LENGTH, WARC_DATE, WARC_IP_ADDRESS, WARC_RECORD_ID, WARC_TYPE};
-use warc::{File, Record, RecordType};
+use warc::{Record, RecordType, WarcWriter};
 
 fn main() -> Result<(), std::io::Error> {
     let date = Record::make_date();
@@ -29,7 +29,7 @@ fn main() -> Result<(), std::io::Error> {
         body: body,
     };
 
-    let mut file = File::open("warc_example.warc")?;
+    let mut file = WarcWriter::from_path("warc_example.warc")?;
 
     let bytes_written = file.write(&record)?;
 
