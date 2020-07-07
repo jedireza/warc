@@ -1,9 +1,13 @@
 use crate::parser;
 use crate::{Error, Record};
+
 use std::fs;
 use std::io;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
+
+#[cfg(feature = "gzip")]
+use libflate::gzip::Decoder as GzipReader;
 
 const KB: usize = 1_024;
 const MB: usize = 1_048_576;
@@ -71,6 +75,21 @@ impl WarcReader<BufReader<fs::File>> {
             .create(true)
             .open(&path)?;
         let reader = BufReader::with_capacity(1 * MB, file);
+
+        Ok(WarcReader::new(reader))
+    }
+}
+
+#[cfg(feature = "gzip")]
+impl WarcReader<BufReader<GzipReader<std::fs::File>>> {
+    pub fn from_path_gzip<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(&path)?;
+        let gzip_stream = GzipReader::new(file)?;
+        let reader = BufReader::with_capacity(1 * MB, gzip_stream);
 
         Ok(WarcReader::new(reader))
     }
