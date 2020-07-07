@@ -6,7 +6,7 @@ use uuid::Uuid;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Record {
     pub version: String,
-    pub headers: HashMap<String, Vec<u8>>,
+    pub headers: HashMap<crate::header::WarcHeader, Vec<u8>>,
     pub body: Vec<u8>,
 }
 
@@ -25,7 +25,7 @@ impl fmt::Display for Record {
         writeln!(f, "WARC/{}", self.version)?;
 
         for (token, value) in self.headers.iter() {
-            writeln!(f, "{}: {}", token, String::from_utf8_lossy(value))?;
+            writeln!(f, "{}: {}", token.to_string(), String::from_utf8_lossy(value))?;
         }
         writeln!(f, "")?;
 
@@ -41,7 +41,7 @@ impl fmt::Display for Record {
 
 #[cfg(test)]
 mod tests {
-    use crate::header::WARC_TYPE;
+    use crate::header::WarcHeader;
     use crate::{Record, RecordType};
     use std::collections::HashMap;
 
@@ -61,7 +61,7 @@ mod tests {
         let record = Record {
             version: "1.0".to_owned(),
             headers: vec![(
-                WARC_TYPE.to_owned(),
+                WarcHeader::WARC_TYPE,
                 RecordType::WarcInfo.to_string().into_bytes(),
             )]
             .into_iter()

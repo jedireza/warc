@@ -33,7 +33,7 @@ impl<W: Write> WarcWriter<W> {
         bytes_written += self.writer.write(&[13, 10])?;
 
         for (token, value) in record.headers.iter() {
-            bytes_written += self.writer.write(token.as_bytes())?;
+            bytes_written += self.writer.write(token.to_string().as_bytes())?;
             bytes_written += self.writer.write(&[58, 32])?;
             bytes_written += self.writer.write(&value)?;
             bytes_written += self.writer.write(&[13, 10])?;
@@ -180,7 +180,7 @@ impl<R: BufRead> Iterator for WarcReader<R> {
             version: version_ref.to_owned(),
             headers: headers_ref
                 .into_iter()
-                .map(|(token, value)| (token.to_lowercase().to_owned(), value.to_owned()))
+                .map(|(token, value)| (token.into(), value.to_owned()))
                 .collect(),
             body: body_ref.to_owned(),
         };

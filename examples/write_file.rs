@@ -1,4 +1,4 @@
-use warc::header::{CONTENT_LENGTH, WARC_DATE, WARC_IP_ADDRESS, WARC_RECORD_ID, WARC_TYPE};
+use warc::header::WarcHeader;
 use warc::{Record, RecordType, WarcWriter};
 
 fn main() -> Result<(), std::io::Error> {
@@ -9,18 +9,18 @@ fn main() -> Result<(), std::io::Error> {
     let record = Record {
         version: "1.0".to_owned(),
         headers: vec![
-            (WARC_RECORD_ID.to_owned(), Record::make_uuid().into_bytes()),
+            (WarcHeader::WARC_RECORD_ID, Record::make_uuid().into_bytes()),
             (
-                WARC_TYPE.to_owned(),
+                WarcHeader::WARC_TYPE,
                 RecordType::WarcInfo.to_string().into_bytes(),
             ),
-            (WARC_DATE.to_owned(), date.into_bytes()),
+            (WarcHeader::WARC_DATE, date.into_bytes()),
             (
-                WARC_IP_ADDRESS.to_owned(),
+                WarcHeader::WARC_IP_ADDRESS,
                 "127.0.0.1".to_owned().into_bytes(),
             ),
             (
-                CONTENT_LENGTH.to_owned(),
+                WarcHeader::CONTENT_LENGTH,
                 body.len().to_string().into_bytes(),
             ),
         ]
