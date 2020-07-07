@@ -1,3 +1,4 @@
+use crate::header::WarcHeader;
 use crate::parser;
 use crate::{Error, Record};
 
@@ -184,6 +185,16 @@ impl<R: BufRead> Iterator for WarcReader<R> {
                 .collect(),
             body: body_ref.to_owned(),
         };
+
+        // certain headers are required by the format
+        for header in vec![WarcHeader::WARC_TYPE,
+                       WarcHeader::WARC_RECORD_ID,
+                       WarcHeader::CONTENT_LENGTH,
+                       WarcHeader::WARC_DATE].into_iter() {
+            if !record.headers.contains_key(&header) {
+                return Some(Err(Error::MissingHeader(header)));
+            }
+        }
 
         return Some(Ok(record));
     }
