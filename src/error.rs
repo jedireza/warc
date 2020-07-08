@@ -3,7 +3,7 @@ use std::fmt;
 
 use crate::header::WarcHeader;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error {
     ParseHeaders,
     MissingHeader(WarcHeader),

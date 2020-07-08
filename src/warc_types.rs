@@ -199,3 +199,172 @@ impl<R: BufRead> Iterator for WarcReader<R> {
         return Some(Ok(record));
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use std::io::{BufReader, Cursor};
+    use std::iter::FromIterator;
+
+    use crate::{WarcReader, header::WarcHeader};
+    macro_rules! create_reader {
+        ($raw:expr) => { {
+            BufReader::new(Cursor::new($raw.get(..).unwrap()))
+        } }
+    }
+
+    #[test]
+    fn basic_record() {
+        let raw = b"\
+            WARC/1.0\r\n\
+            Warc-Type: dunno\r\n\
+            Content-Length: 5\r\n\
+            WARC-Record-Id: <urn:test:basic-record:record-0>\r\n\
+            WARC-Date: 2020-07-08T02:52:55Z\r\n\
+            \r\n\
+            12345\r\n\
+            \r\n\
+        ";
+
+        let expected_version = "1.0";
+        let expected_headers: HashMap<WarcHeader, Vec<u8>> =
+            HashMap::from_iter(vec![
+                (WarcHeader::WARC_TYPE, b"dunno".to_vec()),
+                (WarcHeader::CONTENT_LENGTH, b"5".to_vec()),
+                (WarcHeader::WARC_RECORD_ID, b"<urn:test:basic-record:record-0>".to_vec()),
+                (WarcHeader::WARC_DATE, b"2020-07-08T02:52:55Z".to_vec()),
+            ].into_iter());
+        let expected_body: &[u8] = b"12345";
+
+        let mut reader = WarcReader::new(create_reader!(raw));
+        let record = reader.next().unwrap().unwrap();
+        assert_eq!(record.version, expected_version);
+        assert_eq!(record.headers, expected_headers);
+        assert_eq!(record.body, expected_body);
+    }
+
+    #[test]
+    fn two_records() {
+        let raw = b"\
+            WARC/1.0\r\n\
+            Warc-Type: dunno\r\n\
+            Content-Length: 5\r\n\
+            WARC-Record-Id: <urn:test:two-records:record-0>\r\n\
+            WARC-Date: 2020-07-08T02:52:55Z\r\n\
+            \r\n\
+            12345\r\n\
+            \r\n\
+            WARC/1.0\r\n\
+            Warc-Type: another\r\n\
+            WARC-Record-Id: <urn:test:two-records:record-1>\r\n\
+            WARC-Date: 2020-07-08T02:52:56Z\r\n\
+            Content-Length: 6\r\n\
+            \r\n\
+            123456\r\n\
+            \r\n\
+        ";
+
+        let mut reader = WarcReader::new(create_reader!(raw));
+        {
+            let expected_version = "1.0";
+            let expected_headers: HashMap<WarcHeader, Vec<u8>> =
+                HashMap::from_iter(vec![
+                    (WarcHeader::WARC_TYPE, b"dunno".to_vec()),
+                    (WarcHeader::CONTENT_LENGTH, b"5".to_vec()),
+                    (WarcHeader::WARC_RECORD_ID, b"<urn:test:two-records:record-0>".to_vec()),
+                    (WarcHeader::WARC_DATE, b"2020-07-08T02:52:55Z".to_vec()),
+                ].into_iter());
+            let expected_body: &[u8] = b"12345";
+
+            let record = reader.next().unwrap().unwrap();
+            assert_eq!(record.version, expected_version);
+            assert_eq!(record.headers, expected_headers);
+            assert_eq!(record.body, expected_body);
+        }
+
+        {
+            let expected_version = "1.0";
+            let expected_headers: HashMap<WarcHeader, Vec<u8>> =
+                HashMap::from_iter(vec![
+                    (WarcHeader::WARC_TYPE, b"another".to_vec()),
+                    (WarcHeader::CONTENT_LENGTH, b"6".to_vec()),
+                    (WarcHeader::WARC_RECORD_ID, b"<urn:test:two-records:record-1>".to_vec()),
+                    (WarcHeader::WARC_DATE, b"2020-07-08T02:52:56Z".to_vec()),
+                ].into_iter());
+            let expected_body: &[u8] = b"123456";
+
+            let record = reader.next().unwrap().unwrap();
+            assert_eq!(record.version, expected_version);
+            assert_eq!(record.headers, expected_headers);
+            assert_eq!(record.body, expected_body);
+        }
+    }
+
+    #[test]
+    fn missing_type() {
+        let raw = b"\
+            WARC/1.0\r\n\
+            WARC-Record-Id: <urn:test:missing:record-0>\r\n\
+            WARC-Date: 2020-07-08T02:52:55Z\r\n\
+            Content-Length: 5\r\n\
+            \r\n\
+            12345\r\n\
+            \r\n\
+        ";
+
+        let mut reader = WarcReader::new(create_reader!(raw));
+        let err = reader.next().unwrap().unwrap_err();
+        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::WARC_TYPE));
+    }
+
+    #[test]
+    fn missing_content_length() {
+        let raw = b"\
+            WARC/1.0\r\n\
+            Warc-Type: dunno\r\n\
+            WARC-Record-Id: <urn:test:missing:record-0>\r\n\
+            WARC-Date: 2020-07-08T02:52:55Z\r\n\
+            \r\n\
+            12345\r\n\
+            \r\n\
+        ";
+
+        let mut reader = WarcReader::new(create_reader!(raw));
+        let err = reader.next().unwrap().unwrap_err();
+        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::CONTENT_LENGTH));
+    }
+
+    #[test]
+    fn missing_record_id() {
+        let raw = b"\
+            WARC/1.0\r\n\
+            Warc-Type: dunno\r\n\
+            Content-Length: 5\r\n\
+            WARC-Date: 2020-07-08T02:52:55Z\r\n\
+            \r\n\
+            12345\r\n\
+            \r\n\
+        ";
+
+        let mut reader = WarcReader::new(create_reader!(raw));
+        let err = reader.next().unwrap().unwrap_err();
+        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::WARC_RECORD_ID));
+    }
+
+    #[test]
+    fn missing_date() {
+        let raw = b"\
+            WARC/1.0\r\n\
+            Warc-Type: dunno\r\n\
+            WARC-Record-Id: <urn:test:missing:record-0>\r\n\
+            Content-Length: 5\r\n\
+            \r\n\
+            12345\r\n\
+            \r\n\
+        ";
+
+        let mut reader = WarcReader::new(create_reader!(raw));
+        let err = reader.next().unwrap().unwrap_err();
+        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::WARC_DATE));
+    }
+}
