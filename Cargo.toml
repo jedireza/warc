@@ -1,6 +1,6 @@
 [package]
 name = "warc"
-version = "0.2.0"
+version = "0.2.1"
 description = "A Rust library for reading and writing WARC files."
 readme = "README.md"
 repository = "https://github.com/jedireza/warc"
@@ -14,3 +14,11 @@ edition = "2018"
 chrono = "0.4.11"
 nom = "5.1.1"
 uuid = { version = "0.8.1", features = ["v4"] }
+
+[dependencies.libflate]
+version = "1"
+optional = true
+
+[features]
+default = ["gzip"]
+gzip = ["libflate"]
