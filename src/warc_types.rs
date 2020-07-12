@@ -180,7 +180,7 @@ impl<R: BufRead> Iterator for WarcReader<R> {
             version: version_ref.to_owned(),
             headers: headers_ref
                 .into_iter()
-                .map(|(token, value)| (token.to_owned(), value.to_owned()))
+                .map(|(token, value)| (token.to_lowercase().to_owned(), value.to_owned()))
                 .collect(),
             body: body_ref.to_owned(),
         };
