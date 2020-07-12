@@ -7,7 +7,7 @@ use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
 
 #[cfg(feature = "gzip")]
-use libflate::gzip::Decoder as GzipReader;
+use libflate::gzip::{Decoder as GzipReader, Encoder as GzipWriter};
 
 const KB: usize = 1_024;
 const MB: usize = 1_048_576;
@@ -48,6 +48,12 @@ impl<W: Write> WarcWriter<W> {
     }
 }
 
+impl<W: Write> WarcWriter<BufWriter<W>> {
+    pub fn into_inner(self) -> Result<W, std::io::IntoInnerError<BufWriter<W>>> {
+        self.writer.into_inner()
+    }
+}
+
 impl WarcWriter<BufWriter<fs::File>> {
     pub fn from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let file = fs::OpenOptions::new()
@@ -56,6 +62,21 @@ impl WarcWriter<BufWriter<fs::File>> {
             .create(true)
             .open(&path)?;
         let writer = BufWriter::with_capacity(1 * MB, file);
+
+        Ok(WarcWriter::new(writer))
+    }
+}
+
+#[cfg(feature = "gzip")]
+impl WarcWriter<BufWriter<GzipWriter<std::fs::File>>> {
+    pub fn from_path_gzip<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(&path)?;
+        let gzip_stream = GzipWriter::new(file)?;
+        let writer = BufWriter::with_capacity(1 * MB, gzip_stream);
 
         Ok(WarcWriter::new(writer))
     }
