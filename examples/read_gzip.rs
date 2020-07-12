@@ -12,13 +12,13 @@ fn main() -> Result<(), std::io::Error> {
             Ok(record) => {
                 println!(
                     "{}: {}",
-                    WarcHeader::WARC_RECORD_ID.to_string(),
-                    String::from_utf8_lossy(record.headers.get(&WarcHeader::WARC_RECORD_ID).unwrap())
+                    WarcHeader::RecordID.to_string(),
+                    String::from_utf8_lossy(record.headers.get(&WarcHeader::RecordID).unwrap())
                 );
                 println!(
                     "{}: {}",
-                    WarcHeader::WARC_DATE.to_string(),
-                    String::from_utf8_lossy(record.headers.get(&WarcHeader::WARC_DATE).unwrap())
+                    WarcHeader::Date.to_string(),
+                    String::from_utf8_lossy(record.headers.get(&WarcHeader::Date).unwrap())
                 );
                 println!("");
             }

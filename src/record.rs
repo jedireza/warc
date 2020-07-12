@@ -61,7 +61,7 @@ mod tests {
         let record = Record {
             version: "1.0".to_owned(),
             headers: vec![(
-                WarcHeader::WARC_TYPE,
+                WarcHeader::WarcType,
                 RecordType::WarcInfo.to_string().into_bytes(),
             )]
             .into_iter()

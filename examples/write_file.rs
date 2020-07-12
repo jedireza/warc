@@ -9,18 +9,18 @@ fn main() -> Result<(), std::io::Error> {
     let record = Record {
         version: "1.0".to_owned(),
         headers: vec![
-            (WarcHeader::WARC_RECORD_ID, Record::make_uuid().into_bytes()),
+            (WarcHeader::RecordID, Record::make_uuid().into_bytes()),
             (
-                WarcHeader::WARC_TYPE,
+                WarcHeader::WarcType,
                 RecordType::WarcInfo.to_string().into_bytes(),
             ),
-            (WarcHeader::WARC_DATE, date.into_bytes()),
+            (WarcHeader::Date, date.into_bytes()),
             (
-                WarcHeader::WARC_IP_ADDRESS,
+                WarcHeader::IPAddress,
                 "127.0.0.1".to_owned().into_bytes(),
             ),
             (
-                WarcHeader::CONTENT_LENGTH,
+                WarcHeader::ContentLength,
                 body.len().to_string().into_bytes(),
             ),
         ]

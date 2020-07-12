@@ -187,10 +187,10 @@ impl<R: BufRead> Iterator for WarcReader<R> {
         };
 
         // certain headers are required by the format
-        for header in vec![WarcHeader::WARC_TYPE,
-                       WarcHeader::WARC_RECORD_ID,
-                       WarcHeader::CONTENT_LENGTH,
-                       WarcHeader::WARC_DATE].into_iter() {
+        for header in vec![WarcHeader::WarcType,
+                       WarcHeader::RecordID,
+                       WarcHeader::ContentLength,
+                       WarcHeader::Date].into_iter() {
             if !record.headers.contains_key(&header) {
                 return Some(Err(Error::MissingHeader(header)));
             }
@@ -229,10 +229,10 @@ mod tests {
         let expected_version = "1.0";
         let expected_headers: HashMap<WarcHeader, Vec<u8>> =
             HashMap::from_iter(vec![
-                (WarcHeader::WARC_TYPE, b"dunno".to_vec()),
-                (WarcHeader::CONTENT_LENGTH, b"5".to_vec()),
-                (WarcHeader::WARC_RECORD_ID, b"<urn:test:basic-record:record-0>".to_vec()),
-                (WarcHeader::WARC_DATE, b"2020-07-08T02:52:55Z".to_vec()),
+                (WarcHeader::WarcType, b"dunno".to_vec()),
+                (WarcHeader::ContentLength, b"5".to_vec()),
+                (WarcHeader::RecordID, b"<urn:test:basic-record:record-0>".to_vec()),
+                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
             ].into_iter());
         let expected_body: &[u8] = b"12345";
 
@@ -269,10 +269,10 @@ mod tests {
             let expected_version = "1.0";
             let expected_headers: HashMap<WarcHeader, Vec<u8>> =
                 HashMap::from_iter(vec![
-                    (WarcHeader::WARC_TYPE, b"dunno".to_vec()),
-                    (WarcHeader::CONTENT_LENGTH, b"5".to_vec()),
-                    (WarcHeader::WARC_RECORD_ID, b"<urn:test:two-records:record-0>".to_vec()),
-                    (WarcHeader::WARC_DATE, b"2020-07-08T02:52:55Z".to_vec()),
+                    (WarcHeader::WarcType, b"dunno".to_vec()),
+                    (WarcHeader::ContentLength, b"5".to_vec()),
+                    (WarcHeader::RecordID, b"<urn:test:two-records:record-0>".to_vec()),
+                    (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
                 ].into_iter());
             let expected_body: &[u8] = b"12345";
 
@@ -286,10 +286,10 @@ mod tests {
             let expected_version = "1.0";
             let expected_headers: HashMap<WarcHeader, Vec<u8>> =
                 HashMap::from_iter(vec![
-                    (WarcHeader::WARC_TYPE, b"another".to_vec()),
-                    (WarcHeader::CONTENT_LENGTH, b"6".to_vec()),
-                    (WarcHeader::WARC_RECORD_ID, b"<urn:test:two-records:record-1>".to_vec()),
-                    (WarcHeader::WARC_DATE, b"2020-07-08T02:52:56Z".to_vec()),
+                    (WarcHeader::WarcType, b"another".to_vec()),
+                    (WarcHeader::ContentLength, b"6".to_vec()),
+                    (WarcHeader::RecordID, b"<urn:test:two-records:record-1>".to_vec()),
+                    (WarcHeader::Date, b"2020-07-08T02:52:56Z".to_vec()),
                 ].into_iter());
             let expected_body: &[u8] = b"123456";
 
@@ -314,7 +314,7 @@ mod tests {
 
         let mut reader = WarcReader::new(create_reader!(raw));
         let err = reader.next().unwrap().unwrap_err();
-        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::WARC_TYPE));
+        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::WarcType));
     }
 
     #[test]
@@ -331,7 +331,7 @@ mod tests {
 
         let mut reader = WarcReader::new(create_reader!(raw));
         let err = reader.next().unwrap().unwrap_err();
-        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::CONTENT_LENGTH));
+        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::ContentLength));
     }
 
     #[test]
@@ -348,7 +348,7 @@ mod tests {
 
         let mut reader = WarcReader::new(create_reader!(raw));
         let err = reader.next().unwrap().unwrap_err();
-        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::WARC_RECORD_ID));
+        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::RecordID));
     }
 
     #[test]
@@ -365,6 +365,6 @@ mod tests {
 
         let mut reader = WarcReader::new(create_reader!(raw));
         let err = reader.next().unwrap().unwrap_err();
-        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::WARC_DATE));
+        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::Date));
     }
 }
