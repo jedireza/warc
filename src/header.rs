@@ -24,7 +24,7 @@ pub enum WarcHeader {
 
 impl ToString for WarcHeader {
     fn to_string(&self) -> String {
-        let stringified = match *self {
+        let stringified = match self {
             WarcHeader::ContentLength => "content-length",
             WarcHeader::ContentType => "content-type",
             WarcHeader::BlockDigest => "warc-block-digest",
