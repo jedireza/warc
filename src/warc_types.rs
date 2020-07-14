@@ -1,4 +1,3 @@
-use crate::header::WarcHeader;
 use crate::parser;
 use crate::{Error, Record};
 
@@ -185,17 +184,6 @@ impl<R: BufRead> Iterator for WarcReader<R> {
                 .collect(),
             body: body_ref.to_owned(),
         };
-
-        // certain headers are required by the format
-        for header in vec![WarcHeader::WarcType,
-                       WarcHeader::RecordID,
-                       WarcHeader::ContentLength,
-                       WarcHeader::Date].into_iter() {
-            if !record.headers.contains_key(&header) {
-                return Some(Err(Error::MissingHeader(header)));
-            }
-        }
-
         return Some(Ok(record));
     }
 }
@@ -298,73 +286,5 @@ mod tests {
             assert_eq!(record.headers, expected_headers);
             assert_eq!(record.body, expected_body);
         }
-    }
-
-    #[test]
-    fn missing_type() {
-        let raw = b"\
-            WARC/1.0\r\n\
-            WARC-Record-Id: <urn:test:missing:record-0>\r\n\
-            WARC-Date: 2020-07-08T02:52:55Z\r\n\
-            Content-Length: 5\r\n\
-            \r\n\
-            12345\r\n\
-            \r\n\
-        ";
-
-        let mut reader = WarcReader::new(create_reader!(raw));
-        let err = reader.next().unwrap().unwrap_err();
-        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::WarcType));
-    }
-
-    #[test]
-    fn missing_content_length() {
-        let raw = b"\
-            WARC/1.0\r\n\
-            Warc-Type: dunno\r\n\
-            WARC-Record-Id: <urn:test:missing:record-0>\r\n\
-            WARC-Date: 2020-07-08T02:52:55Z\r\n\
-            \r\n\
-            12345\r\n\
-            \r\n\
-        ";
-
-        let mut reader = WarcReader::new(create_reader!(raw));
-        let err = reader.next().unwrap().unwrap_err();
-        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::ContentLength));
-    }
-
-    #[test]
-    fn missing_record_id() {
-        let raw = b"\
-            WARC/1.0\r\n\
-            Warc-Type: dunno\r\n\
-            Content-Length: 5\r\n\
-            WARC-Date: 2020-07-08T02:52:55Z\r\n\
-            \r\n\
-            12345\r\n\
-            \r\n\
-        ";
-
-        let mut reader = WarcReader::new(create_reader!(raw));
-        let err = reader.next().unwrap().unwrap_err();
-        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::RecordID));
-    }
-
-    #[test]
-    fn missing_date() {
-        let raw = b"\
-            WARC/1.0\r\n\
-            Warc-Type: dunno\r\n\
-            WARC-Record-Id: <urn:test:missing:record-0>\r\n\
-            Content-Length: 5\r\n\
-            \r\n\
-            12345\r\n\
-            \r\n\
-        ";
-
-        let mut reader = WarcReader::new(create_reader!(raw));
-        let err = reader.next().unwrap().unwrap_err();
-        assert_eq!(err, crate::error::Error::MissingHeader(WarcHeader::Date));
     }
 }

@@ -3,6 +3,9 @@ use std::collections::HashMap;
 use std::fmt;
 use uuid::Uuid;
 
+use crate::header::WarcHeader;
+use crate::Error as WarcError;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Record {
     pub version: String,
@@ -17,6 +20,18 @@ impl Record {
 
     pub fn make_date() -> String {
         format!("{}", Utc::now())
+    }
+
+    pub fn verify(&self) -> Result<(), WarcError> {
+        for header in vec![WarcHeader::WarcType,
+                       WarcHeader::RecordID,
+                       WarcHeader::ContentLength,
+                       WarcHeader::Date].into_iter() {
+            if !self.headers.contains_key(&header) {
+                return Err(WarcError::MissingHeader(header));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -70,5 +85,92 @@ mod tests {
         };
 
         assert_eq!(record.headers.len(), 1);
+    }
+
+    #[test]
+    fn verify_ok() {
+        let record = Record {
+            version: "1.0".to_owned(),
+            headers: vec![
+                (WarcHeader::WarcType, b"dunno".to_vec()),
+                (WarcHeader::ContentLength, b"5".to_vec()),
+                (WarcHeader::RecordID, b"<urn:test:basic-record:record-0>".to_vec()),
+                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+             ]
+            .into_iter()
+            .collect(),
+            body: b"12345".to_vec()
+        };
+
+        assert!(record.verify().is_ok());
+    }
+
+
+    #[test]
+    fn verify_missing_type() {
+        let record = Record {
+            version: "1.0".to_owned(),
+            headers: vec![
+                (WarcHeader::ContentLength, b"5".to_vec()),
+                (WarcHeader::RecordID, b"<urn:test:basic-record:record-0>".to_vec()),
+                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+             ]
+            .into_iter()
+            .collect(),
+            body: b"12345".to_vec()
+        };
+
+        assert!(record.verify().is_err());
+    }
+
+    #[test]
+    fn verify_missing_content_length() {
+        let record = Record {
+            version: "1.0".to_owned(),
+            headers: vec![
+                (WarcHeader::WarcType, b"dunno".to_vec()),
+                (WarcHeader::RecordID, b"<urn:test:basic-record:record-0>".to_vec()),
+                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+             ]
+            .into_iter()
+            .collect(),
+            body: b"12345".to_vec()
+        };
+
+        assert!(record.verify().is_err());
+    }
+
+    #[test]
+    fn verify_missing_record_id() {
+        let record = Record {
+            version: "1.0".to_owned(),
+            headers: vec![
+                (WarcHeader::WarcType, b"dunno".to_vec()),
+                (WarcHeader::ContentLength, b"5".to_vec()),
+                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+             ]
+            .into_iter()
+            .collect(),
+            body: b"12345".to_vec()
+        };
+
+        assert!(record.verify().is_err());
+    }
+
+    #[test]
+    fn verify_missing_date() {
+        let record = Record {
+            version: "1.0".to_owned(),
+            headers: vec![
+                (WarcHeader::WarcType, b"dunno".to_vec()),
+                (WarcHeader::ContentLength, b"5".to_vec()),
+                (WarcHeader::RecordID, b"<urn:test:basic-record:record-0>".to_vec()),
+             ]
+            .into_iter()
+            .collect(),
+            body: b"12345".to_vec()
+        };
+
+        assert!(record.verify().is_err());
     }
 }
