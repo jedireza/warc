@@ -3,12 +3,20 @@ use std::fmt;
 
 use crate::header::WarcHeader;
 
+/// An error type returned by WARC header parsing.
 #[derive(Debug, PartialEq)]
 pub enum Error {
+    /// An error occured identifing or parsing headers.
     ParseHeaders,
+    /// A header required by the standard is missing from the record. The record was well-formed,
+    /// but invalid.
     MissingHeader(WarcHeader),
+    /// The underlying read from the data source failed.
     ReadData,
+    /// More data was read than expected by the header metadata. The record was well-formed, but
+    /// invalid.
     ReadOverflow,
+    /// The end of the record's body was found unexpectedly.
     UnexpectedEOB,
 }
 

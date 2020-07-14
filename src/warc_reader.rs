@@ -12,17 +12,20 @@ use libflate::gzip::Decoder as GzipReader;
 const KB: usize = 1_024;
 const MB: usize = 1_048_576;
 
+/// A reader which iteratively parses WARC records from a stream.
 pub struct WarcReader<R> {
     reader: R,
 }
 
 impl<R: BufRead> WarcReader<R> {
+    /// Create a new reader.
     pub fn new(r: R) -> Self {
         WarcReader { reader: r }
     }
 }
 
 impl WarcReader<BufReader<fs::File>> {
+    /// Create a new reader which reads from file.
     pub fn from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let file = fs::OpenOptions::new()
             .read(true)
@@ -37,6 +40,9 @@ impl WarcReader<BufReader<fs::File>> {
 
 #[cfg(feature = "gzip")]
 impl WarcReader<BufReader<GzipReader<std::fs::File>>> {
+    /// Create a new reader which reads from a compressed file.
+    ///
+    /// Only GZIP compression is currently supported.
     pub fn from_path_gzip<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let file = fs::OpenOptions::new()
             .read(true)

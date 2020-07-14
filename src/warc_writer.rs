@@ -10,15 +10,20 @@ use libflate::gzip::Encoder as GzipWriter;
 
 const MB: usize = 1_048_576;
 
+/// A writer which writes records to an output stream.
 pub struct WarcWriter<W> {
     writer: W,
 }
 
 impl<W: Write> WarcWriter<W> {
+    /// Create a new writer.
     pub fn new(w: W) -> Self {
         WarcWriter { writer: w }
     }
 
+    /// Write a single record.
+    ///
+    /// The number of bytes written is returned upon success.
     pub fn write(&mut self, record: &Record) -> io::Result<usize> {
         let mut bytes_written = 0;
 
@@ -43,12 +48,25 @@ impl<W: Write> WarcWriter<W> {
 }
 
 impl<W: Write> WarcWriter<BufWriter<W>> {
+    /// Consume this writer and return the inner writer.
+    ///
+    /// # Flushing Compressed Data Streams
+    ///
+    /// This method is necessary to be called at the end of a GZIP-compressed stream. An extra call
+    /// is needed to flush the buffer of data, and write a trailer to the output stream.
+    ///
+    /// ```ignore
+    /// let gzip_stream = writer.into_inner()?;
+    /// gzip_writer.finish().into_result()?;
+    /// ```
+    ///
     pub fn into_inner(self) -> Result<W, std::io::IntoInnerError<BufWriter<W>>> {
         self.writer.into_inner()
     }
 }
 
 impl WarcWriter<BufWriter<fs::File>> {
+    /// Create a new writer which writes to a file.
     pub fn from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let file = fs::OpenOptions::new()
             .read(true)
@@ -63,6 +81,7 @@ impl WarcWriter<BufWriter<fs::File>> {
 
 #[cfg(feature = "gzip")]
 impl WarcWriter<BufWriter<GzipWriter<std::fs::File>>> {
+    /// Create a new writer which writes to a GZIP-compressed file.
     pub fn from_path_gzip<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let file = fs::OpenOptions::new()
             .read(true)

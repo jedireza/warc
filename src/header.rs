@@ -1,3 +1,6 @@
+/// Represents a WARC header defined by the standard.
+///
+/// All headers are camel-case versions of the standard names, with the hyphens removed.
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum WarcHeader {
     ContentLength,
