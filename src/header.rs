@@ -24,27 +24,27 @@ pub enum WarcHeader {
 
 impl ToString for WarcHeader {
     fn to_string(&self) -> String {
-        let stringified = match self {
-            &WarcHeader::ContentLength => "content-length",
-            &WarcHeader::ContentType => "content-type",
-            &WarcHeader::BlockDigest => "warc-block-digest",
-            &WarcHeader::ConcurrentTo => "warc-concurrent-to",
-            &WarcHeader::Date => "warc-date",
-            &WarcHeader::Filename => "warc-filename",
-            &WarcHeader::IdentifiedPayloadType => "warc-identified-payload-type",
-            &WarcHeader::IPAddress => "warc-ip-address",
-            &WarcHeader::PayloadDigest => "warc-payload-digest",
-            &WarcHeader::Profile => "warc-profile",
-            &WarcHeader::RecordID => "warc-record-id",
-            &WarcHeader::RefersTo => "warc-refers-to",
-            &WarcHeader::SegmentNumber => "warc-segment-number",
-            &WarcHeader::SegmentOriginID => "warc-segment-origin-id",
-            &WarcHeader::SegmentTotalLength => "warc-segment-total-length",
-            &WarcHeader::TargetURI => "warc-target-uri",
-            &WarcHeader::Truncated => "warc-truncated",
-            &WarcHeader::WarcType => "warc-type",
-            &WarcHeader::WarcInfoID => "warc-warcinfo-id",
-            &WarcHeader::Unknown(ref string) => string,
+        let stringified = match *self {
+            WarcHeader::ContentLength => "content-length",
+            WarcHeader::ContentType => "content-type",
+            WarcHeader::BlockDigest => "warc-block-digest",
+            WarcHeader::ConcurrentTo => "warc-concurrent-to",
+            WarcHeader::Date => "warc-date",
+            WarcHeader::Filename => "warc-filename",
+            WarcHeader::IdentifiedPayloadType => "warc-identified-payload-type",
+            WarcHeader::IPAddress => "warc-ip-address",
+            WarcHeader::PayloadDigest => "warc-payload-digest",
+            WarcHeader::Profile => "warc-profile",
+            WarcHeader::RecordID => "warc-record-id",
+            WarcHeader::RefersTo => "warc-refers-to",
+            WarcHeader::SegmentNumber => "warc-segment-number",
+            WarcHeader::SegmentOriginID => "warc-segment-origin-id",
+            WarcHeader::SegmentTotalLength => "warc-segment-total-length",
+            WarcHeader::TargetURI => "warc-target-uri",
+            WarcHeader::Truncated => "warc-truncated",
+            WarcHeader::WarcType => "warc-type",
+            WarcHeader::WarcInfoID => "warc-warcinfo-id",
+            WarcHeader::Unknown(ref string) => string,
         };
         stringified.to_string()
     }
