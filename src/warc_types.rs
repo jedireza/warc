@@ -33,7 +33,7 @@ impl<W: Write> WarcWriter<W> {
         bytes_written += self.writer.write(&[13, 10])?;
 
         for (token, value) in record.headers.iter() {
-            bytes_written += self.writer.write(token.as_bytes())?;
+            bytes_written += self.writer.write(token.to_string().as_bytes())?;
             bytes_written += self.writer.write(&[58, 32])?;
             bytes_written += self.writer.write(&value)?;
             bytes_written += self.writer.write(&[13, 10])?;
@@ -180,11 +180,111 @@ impl<R: BufRead> Iterator for WarcReader<R> {
             version: version_ref.to_owned(),
             headers: headers_ref
                 .into_iter()
-                .map(|(token, value)| (token.to_lowercase().to_owned(), value.to_owned()))
+                .map(|(token, value)| (token.into(), value.to_owned()))
                 .collect(),
             body: body_ref.to_owned(),
         };
-
         return Some(Ok(record));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use std::io::{BufReader, Cursor};
+    use std::iter::FromIterator;
+
+    use crate::{WarcReader, header::WarcHeader};
+    macro_rules! create_reader {
+        ($raw:expr) => { {
+            BufReader::new(Cursor::new($raw.get(..).unwrap()))
+        } }
+    }
+
+    #[test]
+    fn basic_record() {
+        let raw = b"\
+            WARC/1.0\r\n\
+            Warc-Type: dunno\r\n\
+            Content-Length: 5\r\n\
+            WARC-Record-Id: <urn:test:basic-record:record-0>\r\n\
+            WARC-Date: 2020-07-08T02:52:55Z\r\n\
+            \r\n\
+            12345\r\n\
+            \r\n\
+        ";
+
+        let expected_version = "1.0";
+        let expected_headers: HashMap<WarcHeader, Vec<u8>> =
+            HashMap::from_iter(vec![
+                (WarcHeader::WarcType, b"dunno".to_vec()),
+                (WarcHeader::ContentLength, b"5".to_vec()),
+                (WarcHeader::RecordID, b"<urn:test:basic-record:record-0>".to_vec()),
+                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+            ].into_iter());
+        let expected_body: &[u8] = b"12345";
+
+        let mut reader = WarcReader::new(create_reader!(raw));
+        let record = reader.next().unwrap().unwrap();
+        assert_eq!(record.version, expected_version);
+        assert_eq!(record.headers, expected_headers);
+        assert_eq!(record.body, expected_body);
+    }
+
+    #[test]
+    fn two_records() {
+        let raw = b"\
+            WARC/1.0\r\n\
+            Warc-Type: dunno\r\n\
+            Content-Length: 5\r\n\
+            WARC-Record-Id: <urn:test:two-records:record-0>\r\n\
+            WARC-Date: 2020-07-08T02:52:55Z\r\n\
+            \r\n\
+            12345\r\n\
+            \r\n\
+            WARC/1.0\r\n\
+            Warc-Type: another\r\n\
+            WARC-Record-Id: <urn:test:two-records:record-1>\r\n\
+            WARC-Date: 2020-07-08T02:52:56Z\r\n\
+            Content-Length: 6\r\n\
+            \r\n\
+            123456\r\n\
+            \r\n\
+        ";
+
+        let mut reader = WarcReader::new(create_reader!(raw));
+        {
+            let expected_version = "1.0";
+            let expected_headers: HashMap<WarcHeader, Vec<u8>> =
+                HashMap::from_iter(vec![
+                    (WarcHeader::WarcType, b"dunno".to_vec()),
+                    (WarcHeader::ContentLength, b"5".to_vec()),
+                    (WarcHeader::RecordID, b"<urn:test:two-records:record-0>".to_vec()),
+                    (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+                ].into_iter());
+            let expected_body: &[u8] = b"12345";
+
+            let record = reader.next().unwrap().unwrap();
+            assert_eq!(record.version, expected_version);
+            assert_eq!(record.headers, expected_headers);
+            assert_eq!(record.body, expected_body);
+        }
+
+        {
+            let expected_version = "1.0";
+            let expected_headers: HashMap<WarcHeader, Vec<u8>> =
+                HashMap::from_iter(vec![
+                    (WarcHeader::WarcType, b"another".to_vec()),
+                    (WarcHeader::ContentLength, b"6".to_vec()),
+                    (WarcHeader::RecordID, b"<urn:test:two-records:record-1>".to_vec()),
+                    (WarcHeader::Date, b"2020-07-08T02:52:56Z".to_vec()),
+                ].into_iter());
+            let expected_body: &[u8] = b"123456";
+
+            let record = reader.next().unwrap().unwrap();
+            assert_eq!(record.version, expected_version);
+            assert_eq!(record.headers, expected_headers);
+            assert_eq!(record.body, expected_body);
+        }
     }
 }

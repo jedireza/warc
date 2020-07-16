@@ -1,4 +1,4 @@
-use warc::header::{WARC_DATE, WARC_RECORD_ID};
+use warc::header::WarcHeader;
 use warc::WarcReader;
 
 fn main() -> Result<(), std::io::Error> {
@@ -12,13 +12,13 @@ fn main() -> Result<(), std::io::Error> {
             Ok(record) => {
                 println!(
                     "{}: {}",
-                    WARC_RECORD_ID,
-                    String::from_utf8_lossy(record.headers.get(WARC_RECORD_ID).unwrap())
+                    WarcHeader::RecordID.to_string(),
+                    String::from_utf8_lossy(record.headers.get(&WarcHeader::RecordID).unwrap())
                 );
                 println!(
                     "{}: {}",
-                    WARC_DATE,
-                    String::from_utf8_lossy(record.headers.get(WARC_DATE).unwrap())
+                    WarcHeader::Date.to_string(),
+                    String::from_utf8_lossy(record.headers.get(&WarcHeader::Date).unwrap())
                 );
                 println!("");
             }

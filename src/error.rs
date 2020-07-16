@@ -1,9 +1,12 @@
 use std::error;
 use std::fmt;
 
-#[derive(Debug)]
+use crate::header::WarcHeader;
+
+#[derive(Debug, PartialEq)]
 pub enum Error {
     ParseHeaders,
+    MissingHeader(WarcHeader),
     ReadData,
     ReadOverflow,
     UnexpectedEOB,
@@ -13,6 +16,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::ParseHeaders => write!(f, "Error parsing headers."),
+            Error::MissingHeader(ref h) => write!(f, "Missing required header: {}", h.to_string()),
             Error::ReadData => write!(f, "Error reading data source."),
             Error::ReadOverflow => write!(f, "Read further than expected."),
             Error::UnexpectedEOB => write!(f, "Unexpected end of body."),
@@ -20,13 +24,4 @@ impl fmt::Display for Error {
     }
 }
 
-impl error::Error for Error {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        match *self {
-            Error::ParseHeaders => None,
-            Error::ReadData => None,
-            Error::ReadOverflow => None,
-            Error::UnexpectedEOB => None,
-        }
-    }
-}
+impl error::Error for Error { }

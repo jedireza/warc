@@ -1,4 +1,4 @@
-use warc::header::{CONTENT_LENGTH, WARC_DATE, WARC_IP_ADDRESS, WARC_RECORD_ID, WARC_TYPE};
+use warc::header::WarcHeader;
 use warc::{Record, RecordType};
 
 fn main() {
@@ -8,20 +8,23 @@ fn main() {
         version: "1.0".to_owned(),
         headers: vec![
             (
-                WARC_RECORD_ID.to_owned(),
+                WarcHeader::RecordID,
                 Record::make_uuid().to_owned().into_bytes(),
             ),
             (
-                WARC_TYPE.to_owned(),
+                WarcHeader::WarcType,
                 RecordType::WarcInfo.to_string().into_bytes(),
             ),
-            (WARC_DATE.to_owned(), Record::make_date().into_bytes()),
             (
-                WARC_IP_ADDRESS.to_owned(),
+                WarcHeader::Date,
+                Record::make_date().into_bytes(),
+            ),
+            (
+                WarcHeader::IPAddress,
                 "127.0.0.1".to_owned().into_bytes(),
             ),
             (
-                CONTENT_LENGTH.to_owned(),
+                WarcHeader::ContentLength,
                 body.len().to_string().into_bytes(),
             ),
         ]
