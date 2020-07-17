@@ -6,18 +6,24 @@ use uuid::Uuid;
 use crate::header::WarcHeader;
 use crate::Error as WarcError;
 
+/// A single WARC record parsed from a data stream.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Record {
+    /// The WARC standard version this record conforms to.
     pub version: String,
+    /// A set of all headers that are part of this record.
     pub headers: HashMap<crate::header::WarcHeader, Vec<u8>>,
+    /// The data body of this record.
     pub body: Vec<u8>,
 }
 
 impl Record {
+    /// Return a new UUID as a string value for the WARC-Record-ID header.
     pub fn make_uuid() -> String {
         format!("<{}>", Uuid::new_v4().to_urn())
     }
 
+    /// Return the current timestamp as a string value for the WARC-Date header.
     pub fn make_date() -> String {
         format!("{}", Utc::now())
     }
