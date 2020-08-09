@@ -134,11 +134,11 @@ mod tests {
     use std::io::{BufReader, Cursor};
     use std::iter::FromIterator;
 
-    use crate::{WarcReader, header::WarcHeader};
+    use crate::{header::WarcHeader, WarcReader};
     macro_rules! create_reader {
-        ($raw:expr) => { {
+        ($raw:expr) => {{
             BufReader::new(Cursor::new($raw.get(..).unwrap()))
-        } }
+        }};
     }
 
     #[test]
@@ -155,13 +155,18 @@ mod tests {
         ";
 
         let expected_version = "1.0";
-        let expected_headers: HashMap<WarcHeader, Vec<u8>> =
-            HashMap::from_iter(vec![
+        let expected_headers: HashMap<WarcHeader, Vec<u8>> = HashMap::from_iter(
+            vec![
                 (WarcHeader::WarcType, b"dunno".to_vec()),
                 (WarcHeader::ContentLength, b"5".to_vec()),
-                (WarcHeader::RecordID, b"<urn:test:basic-record:record-0>".to_vec()),
+                (
+                    WarcHeader::RecordID,
+                    b"<urn:test:basic-record:record-0>".to_vec(),
+                ),
                 (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-            ].into_iter());
+            ]
+            .into_iter(),
+        );
         let expected_body: &[u8] = b"12345";
 
         let mut reader = WarcReader::new(create_reader!(raw));
@@ -195,13 +200,18 @@ mod tests {
         let mut reader = WarcReader::new(create_reader!(raw));
         {
             let expected_version = "1.0";
-            let expected_headers: HashMap<WarcHeader, Vec<u8>> =
-                HashMap::from_iter(vec![
+            let expected_headers: HashMap<WarcHeader, Vec<u8>> = HashMap::from_iter(
+                vec![
                     (WarcHeader::WarcType, b"dunno".to_vec()),
                     (WarcHeader::ContentLength, b"5".to_vec()),
-                    (WarcHeader::RecordID, b"<urn:test:two-records:record-0>".to_vec()),
+                    (
+                        WarcHeader::RecordID,
+                        b"<urn:test:two-records:record-0>".to_vec(),
+                    ),
                     (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-                ].into_iter());
+                ]
+                .into_iter(),
+            );
             let expected_body: &[u8] = b"12345";
 
             let record = reader.next().unwrap().unwrap();
@@ -212,13 +222,18 @@ mod tests {
 
         {
             let expected_version = "1.0";
-            let expected_headers: HashMap<WarcHeader, Vec<u8>> =
-                HashMap::from_iter(vec![
+            let expected_headers: HashMap<WarcHeader, Vec<u8>> = HashMap::from_iter(
+                vec![
                     (WarcHeader::WarcType, b"another".to_vec()),
                     (WarcHeader::ContentLength, b"6".to_vec()),
-                    (WarcHeader::RecordID, b"<urn:test:two-records:record-1>".to_vec()),
+                    (
+                        WarcHeader::RecordID,
+                        b"<urn:test:two-records:record-1>".to_vec(),
+                    ),
                     (WarcHeader::Date, b"2020-07-08T02:52:56Z".to_vec()),
-                ].into_iter());
+                ]
+                .into_iter(),
+            );
             let expected_body: &[u8] = b"123456";
 
             let record = reader.next().unwrap().unwrap();
