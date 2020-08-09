@@ -29,10 +29,14 @@ impl Record {
     }
 
     pub fn verify(&self) -> Result<(), WarcError> {
-        for header in vec![WarcHeader::WarcType,
-                       WarcHeader::RecordID,
-                       WarcHeader::ContentLength,
-                       WarcHeader::Date].into_iter() {
+        for header in vec![
+            WarcHeader::WarcType,
+            WarcHeader::RecordID,
+            WarcHeader::ContentLength,
+            WarcHeader::Date,
+        ]
+        .into_iter()
+        {
             if !self.headers.contains_key(&header) {
                 return Err(WarcError::MissingHeader(header));
             }
@@ -46,7 +50,12 @@ impl fmt::Display for Record {
         writeln!(f, "WARC/{}", self.version)?;
 
         for (token, value) in self.headers.iter() {
-            writeln!(f, "{}: {}", token.to_string(), String::from_utf8_lossy(value))?;
+            writeln!(
+                f,
+                "{}: {}",
+                token.to_string(),
+                String::from_utf8_lossy(value)
+            )?;
         }
         writeln!(f, "")?;
 
@@ -100,17 +109,19 @@ mod tests {
             headers: vec![
                 (WarcHeader::WarcType, b"dunno".to_vec()),
                 (WarcHeader::ContentLength, b"5".to_vec()),
-                (WarcHeader::RecordID, b"<urn:test:basic-record:record-0>".to_vec()),
+                (
+                    WarcHeader::RecordID,
+                    b"<urn:test:basic-record:record-0>".to_vec(),
+                ),
                 (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-             ]
+            ]
             .into_iter()
             .collect(),
-            body: b"12345".to_vec()
+            body: b"12345".to_vec(),
         };
 
         assert!(record.verify().is_ok());
     }
-
 
     #[test]
     fn verify_missing_type() {
@@ -118,12 +129,15 @@ mod tests {
             version: "1.0".to_owned(),
             headers: vec![
                 (WarcHeader::ContentLength, b"5".to_vec()),
-                (WarcHeader::RecordID, b"<urn:test:basic-record:record-0>".to_vec()),
+                (
+                    WarcHeader::RecordID,
+                    b"<urn:test:basic-record:record-0>".to_vec(),
+                ),
                 (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-             ]
+            ]
             .into_iter()
             .collect(),
-            body: b"12345".to_vec()
+            body: b"12345".to_vec(),
         };
 
         assert!(record.verify().is_err());
@@ -135,12 +149,15 @@ mod tests {
             version: "1.0".to_owned(),
             headers: vec![
                 (WarcHeader::WarcType, b"dunno".to_vec()),
-                (WarcHeader::RecordID, b"<urn:test:basic-record:record-0>".to_vec()),
+                (
+                    WarcHeader::RecordID,
+                    b"<urn:test:basic-record:record-0>".to_vec(),
+                ),
                 (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-             ]
+            ]
             .into_iter()
             .collect(),
-            body: b"12345".to_vec()
+            body: b"12345".to_vec(),
         };
 
         assert!(record.verify().is_err());
@@ -154,10 +171,10 @@ mod tests {
                 (WarcHeader::WarcType, b"dunno".to_vec()),
                 (WarcHeader::ContentLength, b"5".to_vec()),
                 (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-             ]
+            ]
             .into_iter()
             .collect(),
-            body: b"12345".to_vec()
+            body: b"12345".to_vec(),
         };
 
         assert!(record.verify().is_err());
@@ -170,11 +187,14 @@ mod tests {
             headers: vec![
                 (WarcHeader::WarcType, b"dunno".to_vec()),
                 (WarcHeader::ContentLength, b"5".to_vec()),
-                (WarcHeader::RecordID, b"<urn:test:basic-record:record-0>".to_vec()),
-             ]
+                (
+                    WarcHeader::RecordID,
+                    b"<urn:test:basic-record:record-0>".to_vec(),
+                ),
+            ]
             .into_iter()
             .collect(),
-            body: b"12345".to_vec()
+            body: b"12345".to_vec(),
         };
 
         assert!(record.verify().is_err());

@@ -15,10 +15,7 @@ fn main() -> Result<(), std::io::Error> {
                 RecordType::WarcInfo.to_string().into_bytes(),
             ),
             (WarcHeader::Date, date.into_bytes()),
-            (
-                WarcHeader::IPAddress,
-                "127.0.0.1".to_owned().into_bytes(),
-            ),
+            (WarcHeader::IPAddress, "127.0.0.1".to_owned().into_bytes()),
             (
                 WarcHeader::ContentLength,
                 body.len().to_string().into_bytes(),
