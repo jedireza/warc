@@ -1,4 +1,4 @@
-use crate::Record;
+use crate::{RawRecord, Record};
 
 use std::fs;
 use std::io;
@@ -25,6 +25,13 @@ impl<W: Write> WarcWriter<W> {
     ///
     /// The number of bytes written is returned upon success.
     pub fn write(&mut self, record: &Record) -> io::Result<usize> {
+        self.write_raw(&record.to_raw())
+    }
+
+    /// Write a single raw record.
+    ///
+    /// The number of bytes written is returned upon success.
+    pub fn write_raw(&mut self, record: &RawRecord) -> io::Result<usize> {
         let mut bytes_written = 0;
 
         bytes_written += self.writer.write(&[87, 65, 82, 67, 47])?;

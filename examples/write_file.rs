@@ -1,15 +1,20 @@
+use chrono::prelude::*;
+
 use warc::header::WarcHeader;
-use warc::{Record, RecordType, WarcWriter};
+use warc::{RawRecord, Record, RecordType, WarcWriter};
 
 fn main() -> Result<(), std::io::Error> {
-    let date = Record::make_date();
+    let date = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let body = format!("wrote to the file on {}", date);
     let body = body.into_bytes();
 
-    let record = Record {
+    let record = RawRecord {
         version: "1.0".to_owned(),
         headers: vec![
-            (WarcHeader::RecordID, Record::make_uuid().into_bytes()),
+            (
+                WarcHeader::RecordID,
+                Record::generate_record_id().into_bytes(),
+            ),
             (
                 WarcHeader::WarcType,
                 RecordType::WarcInfo.to_string().into_bytes(),
@@ -28,7 +33,7 @@ fn main() -> Result<(), std::io::Error> {
 
     let mut file = WarcWriter::from_path("warc_example.warc")?;
 
-    let bytes_written = file.write(&record)?;
+    let bytes_written = file.write_raw(&record)?;
 
     println!("{} bytes written.", bytes_written);
 

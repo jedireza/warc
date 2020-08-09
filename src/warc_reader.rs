@@ -1,5 +1,5 @@
 use crate::parser;
-use crate::{Error, Record};
+use crate::{Error, RawRecord};
 
 use std::fs;
 use std::io;
@@ -57,7 +57,7 @@ impl WarcReader<BufReader<GzipReader<std::fs::File>>> {
 }
 
 impl<R: BufRead> Iterator for WarcReader<R> {
-    type Item = Result<Record, Error>;
+    type Item = Result<RawRecord, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut header_buffer: Vec<u8> = Vec::with_capacity(64 * KB);
@@ -116,7 +116,7 @@ impl<R: BufRead> Iterator for WarcReader<R> {
 
         let body_ref = &body_buffer[..expected_body_len];
 
-        let record = Record {
+        let record = RawRecord {
             version: version_ref.to_owned(),
             headers: headers_ref
                 .into_iter()
