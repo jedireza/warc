@@ -149,7 +149,7 @@ impl Record {
     /// The standard only places a small number of constraints on this field:
     /// 1. This value is globally unique "for its period of use"
     /// 1. This value is a valid URI
-    /// 1. This value "clearly indicate[s] a documented and registered scheme to which it conforms."
+    /// 1. This value "clearly indicate\[s\] a documented and registered scheme to which it conforms."
     ///
     /// These guarantees will be upheld by all generated outputs, where the "period of use" is
     /// presumed to be indefinite and unlimited.
