@@ -9,15 +9,36 @@ use crate::record_type::RecordType;
 use crate::truncated_type::TruncatedType;
 use crate::Error as WarcError;
 
+/// A header block of a single WARC record as parsed from a data stream.
+///
+/// It is guaranteed to be well-formed, but may not be valid according to the specification.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RawHeader {
+    /// The WARC standard version this record reports conformance to.
+    pub version: String,
+    /// All headers that are part of this record.
+    pub headers: HashMap<WarcHeader, Vec<u8>>,
+}
+
+impl AsRef<HashMap<WarcHeader, Vec<u8>>> for RawHeader {
+    fn as_ref(&self) -> &HashMap<WarcHeader, Vec<u8>> {
+        &self.headers
+    }
+}
+
+impl AsMut<HashMap<WarcHeader, Vec<u8>>> for RawHeader {
+    fn as_mut(&mut self) -> &mut HashMap<WarcHeader, Vec<u8>> {
+        &mut self.headers
+    }
+}
+
 /// A single WARC record as parsed from a data stream.
 ///
 /// It is guaranteed to be well-formed, but may not be valid according to the specification.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RawRecord {
-    /// The WARC standard version this record reports conformance to.
-    pub version: String,
-    /// All headers that are part of this record.
-    pub headers: HashMap<WarcHeader, Vec<u8>>,
+    /// The headers on this record.
+    pub headers: RawHeader,
     /// The data body of this record.
     pub body: Vec<u8>,
 }
@@ -72,21 +93,26 @@ impl Record {
             record_type,
             ..
         } = self;
-        let insert1 = raw.headers.insert(
+        let insert1 = raw.headers.as_mut().insert(
             WarcHeader::ContentLength,
             format!("{}", raw.body.len()).into(),
         );
         let insert2 = raw
             .headers
+            .as_mut()
             .insert(WarcHeader::WarcType, record_type.to_string().into());
-        let insert3 = raw.headers.insert(WarcHeader::RecordID, record_id.into());
+        let insert3 = raw
+            .headers
+            .as_mut()
+            .insert(WarcHeader::RecordID, record_id.into());
         let insert4 = if let Some(ref truncated_type) = self.truncated_type {
             raw.headers
+                .as_mut()
                 .insert(WarcHeader::Truncated, truncated_type.to_string().into())
         } else {
             None
         };
-        let insert5 = raw.headers.insert(
+        let insert5 = raw.headers.as_mut().insert(
             WarcHeader::Date,
             record_date
                 .to_rfc3339_opts(SecondsFormat::Secs, true)
@@ -108,23 +134,26 @@ impl Record {
     /// Create a raw record which contains the same data as this record.
     pub fn to_raw(&self) -> RawRecord {
         let mut raw = self.raw.clone();
-        let insert1 = raw.headers.insert(
+        let insert1 = raw.headers.as_mut().insert(
             WarcHeader::ContentLength,
             format!("{}", self.raw.body.len()).into(),
         );
         let insert2 = raw
             .headers
+            .as_mut()
             .insert(WarcHeader::WarcType, self.record_type.to_string().into());
         let insert3 = raw
             .headers
+            .as_mut()
             .insert(WarcHeader::RecordID, self.record_id.clone().into());
         let insert4 = if let Some(ref truncated_type) = self.truncated_type {
             raw.headers
+                .as_mut()
                 .insert(WarcHeader::Truncated, truncated_type.to_string().into())
         } else {
             None
         };
-        let insert5 = raw.headers.insert(
+        let insert5 = raw.headers.as_mut().insert(
             WarcHeader::Date,
             self.record_date
                 .to_rfc3339_opts(SecondsFormat::Secs, true)
@@ -193,12 +222,12 @@ impl Record {
 
     /// Return the WARC version string of this record.
     pub fn warc_version(&self) -> &str {
-        &self.raw.version
+        &self.raw.headers.version
     }
 
     /// Set the WARC version string of this record.
     pub fn set_warc_version<S: Into<String>>(&mut self, id: S) {
-        self.raw.version = id.into();
+        self.raw.headers.version = id.into();
     }
 
     /// Return the WARC-Record-ID header for this record.
@@ -260,6 +289,7 @@ impl Record {
             _ => self
                 .raw
                 .headers
+                .as_ref()
                 .get(&header)
                 .map(|h| Cow::Owned(String::from_utf8(h.clone()).unwrap())),
         }
@@ -314,6 +344,7 @@ impl Record {
             _ => Ok(self
                 .raw
                 .headers
+                .as_mut()
                 .insert(header, Vec::from(value))
                 .map(|v| Cow::Owned(String::from_utf8(v).unwrap()))),
         }
@@ -342,8 +373,10 @@ impl Default for Record {
     fn default() -> Record {
         Record {
             raw: RawRecord {
-                version: "WARC/1.0".to_string(),
-                headers: HashMap::new(),
+                headers: RawHeader {
+                    version: "WARC/1.0".to_string(),
+                    headers: HashMap::new(),
+                },
                 body: vec![],
             },
             record_date: Utc::now(),
@@ -358,6 +391,7 @@ impl std::convert::TryFrom<RawRecord> for Record {
     type Error = WarcError;
     fn try_from(mut raw: RawRecord) -> Result<Self, WarcError> {
         raw.headers
+            .as_mut()
             .remove(&WarcHeader::ContentLength)
             .ok_or_else(|| WarcError::MissingHeader(WarcHeader::ContentLength))
             .and_then(|vec| {
@@ -379,6 +413,7 @@ impl std::convert::TryFrom<RawRecord> for Record {
 
         let record_type = raw
             .headers
+            .as_mut()
             .remove(&WarcHeader::WarcType)
             .ok_or_else(|| WarcError::MissingHeader(WarcHeader::WarcType))
             .and_then(|vec| {
@@ -393,6 +428,7 @@ impl std::convert::TryFrom<RawRecord> for Record {
 
         let record_id = raw
             .headers
+            .as_mut()
             .remove(&WarcHeader::RecordID)
             .ok_or_else(|| WarcError::MissingHeader(WarcHeader::RecordID))
             .and_then(|vec| {
@@ -403,6 +439,7 @@ impl std::convert::TryFrom<RawRecord> for Record {
 
         let record_date = raw
             .headers
+            .as_mut()
             .remove(&WarcHeader::Date)
             .ok_or_else(|| WarcError::MissingHeader(WarcHeader::Date))
             .and_then(|vec| {
@@ -436,9 +473,9 @@ impl std::convert::From<Record> for RawRecord {
 
 impl fmt::Display for RawRecord {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "WARC/{}", self.version)?;
+        writeln!(f, "WARC/{}", self.headers.version)?;
 
-        for (token, value) in self.headers.iter() {
+        for (token, value) in self.headers.as_ref().iter() {
             writeln!(
                 f,
                 "{}: {}",
@@ -531,7 +568,7 @@ impl RecordBuilder {
             ..
         } = self;
         let mut raw = value.into_raw();
-        raw.headers.extend(broken_headers);
+        raw.headers.as_mut().extend(broken_headers);
 
         raw
     }
@@ -696,7 +733,7 @@ mod record_tests {
 #[cfg(test)]
 mod raw_tests {
     use crate::header::WarcHeader;
-    use crate::{RawRecord, Record, RecordType};
+    use crate::{RawHeader, RawRecord, Record, RecordType};
 
     use std::collections::HashMap;
     use std::convert::TryFrom;
@@ -704,8 +741,10 @@ mod raw_tests {
     #[test]
     fn create() {
         let record = RawRecord {
-            version: "WARC/1.0".to_owned(),
-            headers: HashMap::new(),
+            headers: RawHeader {
+                version: "WARC/1.0".to_owned(),
+                headers: HashMap::new(),
+            },
             body: vec![],
         };
 
@@ -715,34 +754,38 @@ mod raw_tests {
     #[test]
     fn create_with_headers() {
         let record = RawRecord {
-            version: "WARC/1.0".to_owned(),
-            headers: vec![(
-                WarcHeader::WarcType,
-                RecordType::WarcInfo.to_string().into_bytes(),
-            )]
-            .into_iter()
-            .collect(),
+            headers: RawHeader {
+                version: "WARC/1.0".to_owned(),
+                headers: vec![(
+                    WarcHeader::WarcType,
+                    RecordType::WarcInfo.to_string().into_bytes(),
+                )]
+                .into_iter()
+                .collect(),
+            },
             body: vec![],
         };
 
-        assert_eq!(record.headers.len(), 1);
+        assert_eq!(record.headers.as_ref().len(), 1);
     }
 
     #[test]
     fn verify_ok() {
         let record = RawRecord {
-            version: "WARC/1.0".to_owned(),
-            headers: vec![
-                (WarcHeader::WarcType, b"dunno".to_vec()),
-                (WarcHeader::ContentLength, b"5".to_vec()),
-                (
-                    WarcHeader::RecordID,
-                    b"<urn:test:basic-record:record-0>".to_vec(),
-                ),
-                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-            ]
-            .into_iter()
-            .collect(),
+            headers: RawHeader {
+                version: "WARC/1.0".to_owned(),
+                headers: vec![
+                    (WarcHeader::WarcType, b"dunno".to_vec()),
+                    (WarcHeader::ContentLength, b"5".to_vec()),
+                    (
+                        WarcHeader::RecordID,
+                        b"<urn:test:basic-record:record-0>".to_vec(),
+                    ),
+                    (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+                ]
+                .into_iter()
+                .collect(),
+            },
             body: b"12345".to_vec(),
         };
 
@@ -752,17 +795,19 @@ mod raw_tests {
     #[test]
     fn verify_missing_type() {
         let record = RawRecord {
-            version: "WARC/1.0".to_owned(),
-            headers: vec![
-                (WarcHeader::ContentLength, b"5".to_vec()),
-                (
-                    WarcHeader::RecordID,
-                    b"<urn:test:basic-record:record-0>".to_vec(),
-                ),
-                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-            ]
-            .into_iter()
-            .collect(),
+            headers: RawHeader {
+                version: "WARC/1.0".to_owned(),
+                headers: vec![
+                    (WarcHeader::ContentLength, b"5".to_vec()),
+                    (
+                        WarcHeader::RecordID,
+                        b"<urn:test:basic-record:record-0>".to_vec(),
+                    ),
+                    (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+                ]
+                .into_iter()
+                .collect(),
+            },
             body: b"12345".to_vec(),
         };
 
@@ -772,17 +817,19 @@ mod raw_tests {
     #[test]
     fn verify_missing_content_length() {
         let record = RawRecord {
-            version: "WARC/1.0".to_owned(),
-            headers: vec![
-                (WarcHeader::WarcType, b"dunno".to_vec()),
-                (
-                    WarcHeader::RecordID,
-                    b"<urn:test:basic-record:record-0>".to_vec(),
-                ),
-                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-            ]
-            .into_iter()
-            .collect(),
+            headers: RawHeader {
+                version: "WARC/1.0".to_owned(),
+                headers: vec![
+                    (WarcHeader::WarcType, b"dunno".to_vec()),
+                    (
+                        WarcHeader::RecordID,
+                        b"<urn:test:basic-record:record-0>".to_vec(),
+                    ),
+                    (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+                ]
+                .into_iter()
+                .collect(),
+            },
             body: b"12345".to_vec(),
         };
 
@@ -792,14 +839,16 @@ mod raw_tests {
     #[test]
     fn verify_missing_record_id() {
         let record = RawRecord {
-            version: "WARC/1.0".to_owned(),
-            headers: vec![
-                (WarcHeader::WarcType, b"dunno".to_vec()),
-                (WarcHeader::ContentLength, b"5".to_vec()),
-                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-            ]
-            .into_iter()
-            .collect(),
+            headers: RawHeader {
+                version: "WARC/1.0".to_owned(),
+                headers: vec![
+                    (WarcHeader::WarcType, b"dunno".to_vec()),
+                    (WarcHeader::ContentLength, b"5".to_vec()),
+                    (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+                ]
+                .into_iter()
+                .collect(),
+            },
             body: b"12345".to_vec(),
         };
 
@@ -809,17 +858,19 @@ mod raw_tests {
     #[test]
     fn verify_missing_date() {
         let record = RawRecord {
-            version: "WARC/1.0".to_owned(),
-            headers: vec![
-                (WarcHeader::WarcType, b"dunno".to_vec()),
-                (WarcHeader::ContentLength, b"5".to_vec()),
-                (
-                    WarcHeader::RecordID,
-                    b"<urn:test:basic-record:record-0>".to_vec(),
-                ),
-            ]
-            .into_iter()
-            .collect(),
+            headers: RawHeader {
+                version: "WARC/1.0".to_owned(),
+                headers: vec![
+                    (WarcHeader::WarcType, b"dunno".to_vec()),
+                    (WarcHeader::ContentLength, b"5".to_vec()),
+                    (
+                        WarcHeader::RecordID,
+                        b"<urn:test:basic-record:record-0>".to_vec(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            },
             body: b"12345".to_vec(),
         };
 
@@ -830,16 +881,19 @@ mod raw_tests {
 #[cfg(test)]
 mod builder_tests {
     use crate::header::WarcHeader;
-    use crate::{RawRecord, Record, RecordBuilder, RecordType, TruncatedType};
+    use crate::{RawHeader, RawRecord, Record, RecordBuilder, RecordType, TruncatedType};
 
     use std::convert::TryFrom;
 
     #[test]
     fn default() {
         let raw = RecordBuilder::default().build_raw();
-        assert_eq!(raw.version, "WARC/1.0".to_string());
+        assert_eq!(raw.headers.version, "WARC/1.0".to_string());
         assert_eq!(
-            raw.headers.get(&WarcHeader::ContentLength).unwrap(),
+            raw.headers
+                .as_ref()
+                .get(&WarcHeader::ContentLength)
+                .unwrap(),
             &b"0".to_vec()
         );
         assert!(raw.body.is_empty());
@@ -867,34 +921,38 @@ mod builder_tests {
     #[test]
     fn create_with_headers() {
         let record = RawRecord {
-            version: "WARC/1.0".to_owned(),
-            headers: vec![(
-                WarcHeader::WarcType,
-                RecordType::WarcInfo.to_string().into_bytes(),
-            )]
-            .into_iter()
-            .collect(),
+            headers: RawHeader {
+                version: "WARC/1.0".to_owned(),
+                headers: vec![(
+                    WarcHeader::WarcType,
+                    RecordType::WarcInfo.to_string().into_bytes(),
+                )]
+                .into_iter()
+                .collect(),
+            },
             body: vec![],
         };
 
-        assert_eq!(record.headers.len(), 1);
+        assert_eq!(record.headers.as_ref().len(), 1);
     }
 
     #[test]
     fn verify_ok() {
         let record = RawRecord {
-            version: "WARC/1.0".to_owned(),
-            headers: vec![
-                (WarcHeader::WarcType, b"dunno".to_vec()),
-                (WarcHeader::ContentLength, b"5".to_vec()),
-                (
-                    WarcHeader::RecordID,
-                    b"<urn:test:basic-record:record-0>".to_vec(),
-                ),
-                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-            ]
-            .into_iter()
-            .collect(),
+            headers: RawHeader {
+                version: "WARC/1.0".to_owned(),
+                headers: vec![
+                    (WarcHeader::WarcType, b"dunno".to_vec()),
+                    (WarcHeader::ContentLength, b"5".to_vec()),
+                    (
+                        WarcHeader::RecordID,
+                        b"<urn:test:basic-record:record-0>".to_vec(),
+                    ),
+                    (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+                ]
+                .into_iter()
+                .collect(),
+            },
             body: b"12345".to_vec(),
         };
 
@@ -913,6 +971,7 @@ mod builder_tests {
                 .unwrap()
                 .into_raw()
                 .headers
+                .as_ref()
                 .get(&WarcHeader::ContentLength)
                 .unwrap(),
             &b"5".to_vec()
@@ -923,6 +982,7 @@ mod builder_tests {
                 .clone()
                 .build_raw()
                 .headers
+                .as_ref()
                 .get(&WarcHeader::ContentLength)
                 .unwrap(),
             &b"5".to_vec()
@@ -934,6 +994,7 @@ mod builder_tests {
                 .clone()
                 .build_raw()
                 .headers
+                .as_ref()
                 .get(&WarcHeader::ContentLength)
                 .unwrap(),
             &b"1".to_vec()
@@ -955,7 +1016,11 @@ mod builder_tests {
 
         assert_eq!(record1, record2);
         assert_eq!(
-            record1.into_raw().headers.get(&WarcHeader::WarcType),
+            record1
+                .into_raw()
+                .headers
+                .as_ref()
+                .get(&WarcHeader::WarcType),
             Some(&b"request".to_vec())
         );
     }
@@ -970,11 +1035,21 @@ mod builder_tests {
 
         let record = builder.clone().build().unwrap();
         assert_eq!(
-            record.to_raw().headers.get(&WarcHeader::Date).unwrap(),
+            record
+                .to_raw()
+                .headers
+                .as_ref()
+                .get(&WarcHeader::Date)
+                .unwrap(),
             &DATE_STRING_0.as_bytes()
         );
         assert_eq!(
-            record.into_raw().headers.get(&WarcHeader::Date).unwrap(),
+            record
+                .into_raw()
+                .headers
+                .as_ref()
+                .get(&WarcHeader::Date)
+                .unwrap(),
             &DATE_STRING_0.as_bytes()
         );
         assert_eq!(
@@ -982,6 +1057,7 @@ mod builder_tests {
                 .clone()
                 .build_raw()
                 .headers
+                .as_ref()
                 .get(&WarcHeader::Date)
                 .unwrap(),
             &DATE_STRING_0.as_bytes()
@@ -990,11 +1066,21 @@ mod builder_tests {
         builder.header(WarcHeader::Date, DATE_STRING_1.to_vec());
         let record = builder.clone().build().unwrap();
         assert_eq!(
-            record.to_raw().headers.get(&WarcHeader::Date).unwrap(),
+            record
+                .to_raw()
+                .headers
+                .as_ref()
+                .get(&WarcHeader::Date)
+                .unwrap(),
             &DATE_STRING_1.to_vec()
         );
         assert_eq!(
-            record.into_raw().headers.get(&WarcHeader::Date).unwrap(),
+            record
+                .into_raw()
+                .headers
+                .as_ref()
+                .get(&WarcHeader::Date)
+                .unwrap(),
             &DATE_STRING_1.to_vec()
         );
         assert_eq!(
@@ -1002,6 +1088,7 @@ mod builder_tests {
                 .clone()
                 .build_raw()
                 .headers
+                .as_ref()
                 .get(&WarcHeader::Date)
                 .unwrap(),
             &DATE_STRING_1.to_vec()
@@ -1021,13 +1108,19 @@ mod builder_tests {
 
         let record = builder.clone().build().unwrap();
         assert_eq!(
-            record.to_raw().headers.get(&WarcHeader::RecordID).unwrap(),
+            record
+                .to_raw()
+                .headers
+                .as_ref()
+                .get(&WarcHeader::RecordID)
+                .unwrap(),
             &RECORD_ID_0.to_vec()
         );
         assert_eq!(
             record
                 .into_raw()
                 .headers
+                .as_ref()
                 .get(&WarcHeader::RecordID)
                 .unwrap(),
             &RECORD_ID_0.to_vec()
@@ -1037,6 +1130,7 @@ mod builder_tests {
                 .clone()
                 .build_raw()
                 .headers
+                .as_ref()
                 .get(&WarcHeader::RecordID)
                 .unwrap(),
             &RECORD_ID_0.to_vec()
@@ -1045,13 +1139,19 @@ mod builder_tests {
         builder.header(WarcHeader::RecordID, RECORD_ID_1.to_vec());
         let record = builder.clone().build().unwrap();
         assert_eq!(
-            record.to_raw().headers.get(&WarcHeader::RecordID).unwrap(),
+            record
+                .to_raw()
+                .headers
+                .as_ref()
+                .get(&WarcHeader::RecordID)
+                .unwrap(),
             &RECORD_ID_1.to_vec()
         );
         assert_eq!(
             record
                 .into_raw()
                 .headers
+                .as_ref()
                 .get(&WarcHeader::RecordID)
                 .unwrap(),
             &RECORD_ID_1.to_vec()
@@ -1061,6 +1161,7 @@ mod builder_tests {
                 .clone()
                 .build_raw()
                 .headers
+                .as_ref()
                 .get(&WarcHeader::RecordID)
                 .unwrap(),
             &RECORD_ID_1.to_vec()
@@ -1077,13 +1178,19 @@ mod builder_tests {
 
         let record = builder.clone().build().unwrap();
         assert_eq!(
-            record.to_raw().headers.get(&WarcHeader::Truncated).unwrap(),
+            record
+                .to_raw()
+                .headers
+                .as_ref()
+                .get(&WarcHeader::Truncated)
+                .unwrap(),
             &TRUNCATED_TYPE_0.to_vec()
         );
         assert_eq!(
             record
                 .into_raw()
                 .headers
+                .as_ref()
                 .get(&WarcHeader::Truncated)
                 .unwrap(),
             &TRUNCATED_TYPE_0.to_vec()
@@ -1093,6 +1200,7 @@ mod builder_tests {
                 .clone()
                 .build_raw()
                 .headers
+                .as_ref()
                 .get(&WarcHeader::Truncated)
                 .unwrap(),
             &TRUNCATED_TYPE_0.to_vec()
@@ -1101,13 +1209,19 @@ mod builder_tests {
         builder.header(WarcHeader::Truncated, "disconnect");
         let record = builder.clone().build().unwrap();
         assert_eq!(
-            record.to_raw().headers.get(&WarcHeader::Truncated).unwrap(),
+            record
+                .to_raw()
+                .headers
+                .as_ref()
+                .get(&WarcHeader::Truncated)
+                .unwrap(),
             &TRUNCATED_TYPE_1.to_vec()
         );
         assert_eq!(
             record
                 .into_raw()
                 .headers
+                .as_ref()
                 .get(&WarcHeader::Truncated)
                 .unwrap(),
             &TRUNCATED_TYPE_1.to_vec()
@@ -1117,6 +1231,7 @@ mod builder_tests {
                 .clone()
                 .build_raw()
                 .headers
+                .as_ref()
                 .get(&WarcHeader::Truncated)
                 .unwrap(),
             &TRUNCATED_TYPE_1.to_vec()
@@ -1130,6 +1245,7 @@ mod builder_tests {
                 .unwrap()
                 .into_raw()
                 .headers
+                .as_ref()
                 .get(&WarcHeader::Truncated)
                 .unwrap()
                 .as_slice(),
@@ -1141,6 +1257,7 @@ mod builder_tests {
                 .clone()
                 .build_raw()
                 .headers
+                .as_ref()
                 .get(&WarcHeader::Truncated)
                 .unwrap()
                 .as_slice(),

@@ -13,7 +13,7 @@ pub mod header;
 pub mod parser;
 
 mod record;
-pub use record::{RawRecord, Record, RecordBuilder};
+pub use record::{RawHeader, RawRecord, Record, RecordBuilder};
 
 mod record_type;
 pub use record_type::RecordType;

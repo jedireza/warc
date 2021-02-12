@@ -35,10 +35,10 @@ impl<W: Write> WarcWriter<W> {
         let mut bytes_written = 0;
 
         bytes_written += self.writer.write(&[87, 65, 82, 67, 47])?;
-        bytes_written += self.writer.write(record.version.as_bytes())?;
+        bytes_written += self.writer.write(record.headers.version.as_bytes())?;
         bytes_written += self.writer.write(&[13, 10])?;
 
-        for (token, value) in record.headers.iter() {
+        for (token, value) in record.headers.as_ref().iter() {
             bytes_written += self.writer.write(token.to_string().as_bytes())?;
             bytes_written += self.writer.write(&[58, 32])?;
             bytes_written += self.writer.write(&value)?;
