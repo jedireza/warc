@@ -9,6 +9,26 @@ use crate::record_type::RecordType;
 use crate::truncated_type::TruncatedType;
 use crate::Error as WarcError;
 
+pub use streaming_trait::BufferedBody;
+use streaming_trait::StreamingType;
+
+mod streaming_trait {
+    use std::io::Read;
+
+    /// A tag indicating how the body is stored within a record.
+    pub trait StreamingType: Clone {}
+
+    #[derive(Clone, Debug, PartialEq)]
+    /// A tag indicating the body is stored in a buffer within the record.
+    pub struct BufferedBody(pub Vec<u8>);
+    impl StreamingType for BufferedBody {}
+
+    #[derive(Clone)]
+    /// A tag indicating the body is streamed from a reader.
+    pub struct StreamingBody<T: Read + Clone>(T);
+    impl<T: Read + Clone> StreamingType for StreamingBody<T> {}
+}
+
 /// A header block of a single WARC record as parsed from a data stream.
 ///
 /// It is guaranteed to be well-formed, but may not be valid according to the specification.
@@ -61,7 +81,7 @@ pub struct RawRecord {
 /// A builder for WARC records from data.
 #[derive(Clone, Default)]
 pub struct RecordBuilder {
-    value: Record,
+    value: Record<BufferedBody>,
     broken_headers: HashMap<WarcHeader, Vec<u8>>,
     last_error: Option<WarcError>,
 }
@@ -74,17 +94,17 @@ pub struct RecordBuilder {
 ///
 /// This record can be constructed by a `RecordBuilder` or by a fallable cast from a `RawRecord`.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Record {
+pub struct Record<T: StreamingType> {
     // NB: invariant: does not contain the headers stored in the struct
     headers: RawHeaderBlock,
     record_date: DateTime<Utc>,
     record_id: String,
     record_type: RecordType,
     truncated_type: Option<TruncatedType>,
-    body: Vec<u8>,
+    body: T,
 }
 
-impl Record {
+impl Record<BufferedBody> {
     /// Create a new empty record with default values.
     ///
     /// Using a `RecordBuilder` is more efficient when creating records from known data.
@@ -94,7 +114,7 @@ impl Record {
     /// * WARC-Date: the current moment in time
     /// * WARC-Type: resource
     /// * WARC-Content-Length: 0
-    pub fn new() -> Record {
+    pub fn new() -> Record<BufferedBody> {
         Record::default()
     }
 
@@ -110,7 +130,7 @@ impl Record {
         } = self;
         let insert1 = headers
             .as_mut()
-            .insert(WarcHeader::ContentLength, format!("{}", body.len()).into());
+            .insert(WarcHeader::ContentLength, format!("{}", body.0.len()).into());
         let insert2 = headers
             .as_mut()
             .insert(WarcHeader::WarcType, record_type.to_string().into());
@@ -140,7 +160,7 @@ impl Record {
             "invariant violation: raw struct contains externally stored fields"
         );
 
-        (headers, body)
+        (headers, body.0)
     }
 
     /// Generate and return a new value suitable for use in the WARC-Record-ID header.
@@ -188,7 +208,7 @@ impl Record {
     ///
     /// This value is guaranteed to match the actual length of the body.
     pub fn content_length(&self) -> u64 {
-        self.body.len() as u64
+        self.body.0.len() as u64
     }
 
     /// Return the WARC version string of this record.
@@ -321,7 +341,7 @@ impl Record {
 
     /// Return the body of this record.
     pub fn body(&self) -> &[u8] {
-        self.body.as_slice()
+        self.body.0.as_slice()
     }
 
     /// Return a reference to mutate the body of this record, but without changing its length.
@@ -329,17 +349,17 @@ impl Record {
     /// To update the body of the record or change its length, use the `replace_body` method
     /// instead.
     pub fn body_mut(&mut self) -> &mut [u8] {
-        self.body.as_mut_slice()
+        self.body.0.as_mut_slice()
     }
 
     /// Replace the body of this record with the given body.
     pub fn replace_body<V: Into<Vec<u8>>>(&mut self, new_body: V) {
-        let _: Vec<u8> = std::mem::replace(&mut self.body, new_body.into());
+        let _: Vec<u8> = std::mem::replace(&mut self.body.0, new_body.into());
     }
 }
 
-impl Default for Record {
-    fn default() -> Record {
+impl Default for Record<BufferedBody> {
+    fn default() -> Record<BufferedBody> {
         Record {
             headers: RawHeaderBlock {
                 version: "WARC/1.0".to_string(),
@@ -349,12 +369,12 @@ impl Default for Record {
             record_id: Record::generate_record_id(),
             record_type: RecordType::Resource,
             truncated_type: None,
-            body: vec![],
+            body: BufferedBody(vec![]),
         }
     }
 }
 
-impl std::convert::TryFrom<RawRecord> for Record {
+impl std::convert::TryFrom<RawRecord> for Record<BufferedBody> {
     type Error = WarcError;
     fn try_from(mut raw: RawRecord) -> Result<Self, WarcError> {
         raw.headers
@@ -422,21 +442,21 @@ impl std::convert::TryFrom<RawRecord> for Record {
             record_date,
             record_id,
             record_type,
-            body,
+            body: BufferedBody(body),
             ..Default::default()
         })
     }
 }
 
-impl fmt::Display for Record {
+impl fmt::Display for Record<BufferedBody> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let (headers, body) = self.clone().into_raw_parts();
         write!(f, "Record({}, {:?})", headers, body)
     }
 }
 
-impl std::convert::From<Record> for RawRecord {
-    fn from(record: Record) -> RawRecord {
+impl std::convert::From<Record<BufferedBody>> for RawRecord {
+    fn from(record: Record<BufferedBody>) -> RawRecord {
         let (headers, body) = record.clone().into_raw_parts();
         RawRecord { headers, body }
     }
@@ -544,7 +564,7 @@ impl RecordBuilder {
         (headers, body)
     }
 
-    pub fn build(self) -> Result<Record, WarcError> {
+    pub fn build(self) -> Result<Record<BufferedBody>, WarcError> {
         let RecordBuilder {
             value,
             broken_headers,
