@@ -128,9 +128,10 @@ impl Record<BufferedBody> {
             body,
             ..
         } = self;
-        let insert1 = headers
-            .as_mut()
-            .insert(WarcHeader::ContentLength, format!("{}", body.0.len()).into());
+        let insert1 = headers.as_mut().insert(
+            WarcHeader::ContentLength,
+            format!("{}", body.0.len()).into(),
+        );
         let insert2 = headers
             .as_mut()
             .insert(WarcHeader::WarcType, record_type.to_string().into());
