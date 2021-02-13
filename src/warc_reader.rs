@@ -1,5 +1,5 @@
 use crate::parser;
-use crate::{Error, RawHeader, RawRecord};
+use crate::{Error, RawHeader};
 
 use std::fs;
 use std::io;
@@ -57,7 +57,7 @@ impl WarcReader<BufReader<GzipReader<std::fs::File>>> {
 }
 
 impl<R: BufRead> Iterator for WarcReader<R> {
-    type Item = Result<RawRecord, Error>;
+    type Item = Result<(RawHeader, Vec<u8>), Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut header_buffer: Vec<u8> = Vec::with_capacity(64 * KB);
@@ -116,17 +116,15 @@ impl<R: BufRead> Iterator for WarcReader<R> {
 
         let body_ref = &body_buffer[..expected_body_len];
 
-        let record = RawRecord {
-            headers: RawHeader {
-                version: version_ref.to_owned(),
-                headers: headers_ref
-                    .into_iter()
-                    .map(|(token, value)| (token.into(), value.to_owned()))
-                    .collect(),
-            },
-            body: body_ref.to_owned(),
+        let headers = RawHeader {
+            version: version_ref.to_owned(),
+            headers: headers_ref
+                .into_iter()
+                .map(|(token, value)| (token.into(), value.to_owned()))
+                .collect(),
         };
-        return Some(Ok(record));
+        let body = body_ref.to_owned();
+        Some(Ok((headers, body)))
     }
 }
 
@@ -172,10 +170,10 @@ mod tests {
         let expected_body: &[u8] = b"12345";
 
         let mut reader = WarcReader::new(create_reader!(raw));
-        let record = reader.next().unwrap().unwrap();
-        assert_eq!(record.headers.version, expected_version);
-        assert_eq!(record.headers.as_ref(), &expected_headers);
-        assert_eq!(record.body, expected_body);
+        let (headers, body) = reader.next().unwrap().unwrap();
+        assert_eq!(headers.version, expected_version);
+        assert_eq!(headers.as_ref(), &expected_headers);
+        assert_eq!(body, expected_body);
     }
 
     #[test]
@@ -216,10 +214,10 @@ mod tests {
             );
             let expected_body: &[u8] = b"12345";
 
-            let record = reader.next().unwrap().unwrap();
-            assert_eq!(record.headers.version, expected_version);
-            assert_eq!(record.headers.as_ref(), &expected_headers);
-            assert_eq!(record.body, expected_body);
+            let (headers, body) = reader.next().unwrap().unwrap();
+            assert_eq!(headers.version, expected_version);
+            assert_eq!(headers.as_ref(), &expected_headers);
+            assert_eq!(body, expected_body);
         }
 
         {
@@ -238,10 +236,10 @@ mod tests {
             );
             let expected_body: &[u8] = b"123456";
 
-            let record = reader.next().unwrap().unwrap();
-            assert_eq!(record.headers.version, expected_version);
-            assert_eq!(record.headers.as_ref(), &expected_headers);
-            assert_eq!(record.body, expected_body);
+            let (headers, body) = reader.next().unwrap().unwrap();
+            assert_eq!(headers.version, expected_version);
+            assert_eq!(headers.as_ref(), &expected_headers);
+            assert_eq!(body, expected_body);
         }
     }
 }

@@ -9,20 +9,16 @@ fn main() -> Result<(), std::io::Error> {
         count += 1;
         match record {
             Err(err) => println!("ERROR: {}\r\n", err),
-            Ok(record) => {
+            Ok((headers, _)) => {
                 println!(
                     "{}: {}",
                     WarcHeader::RecordID.to_string(),
-                    String::from_utf8_lossy(
-                        record.headers.as_ref().get(&WarcHeader::RecordID).unwrap()
-                    )
+                    String::from_utf8_lossy(headers.as_ref().get(&WarcHeader::RecordID).unwrap())
                 );
                 println!(
                     "{}: {}",
                     WarcHeader::Date.to_string(),
-                    String::from_utf8_lossy(
-                        record.headers.as_ref().get(&WarcHeader::Date).unwrap()
-                    )
+                    String::from_utf8_lossy(headers.as_ref().get(&WarcHeader::Date).unwrap())
                 );
                 println!("");
             }
