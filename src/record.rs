@@ -13,26 +13,26 @@ use crate::Error as WarcError;
 ///
 /// It is guaranteed to be well-formed, but may not be valid according to the specification.
 #[derive(Clone, Debug, PartialEq)]
-pub struct RawHeader {
+pub struct RawHeaderBlock {
     /// The WARC standard version this record reports conformance to.
     pub version: String,
     /// All headers that are part of this record.
     pub headers: HashMap<WarcHeader, Vec<u8>>,
 }
 
-impl AsRef<HashMap<WarcHeader, Vec<u8>>> for RawHeader {
+impl AsRef<HashMap<WarcHeader, Vec<u8>>> for RawHeaderBlock {
     fn as_ref(&self) -> &HashMap<WarcHeader, Vec<u8>> {
         &self.headers
     }
 }
 
-impl AsMut<HashMap<WarcHeader, Vec<u8>>> for RawHeader {
+impl AsMut<HashMap<WarcHeader, Vec<u8>>> for RawHeaderBlock {
     fn as_mut(&mut self) -> &mut HashMap<WarcHeader, Vec<u8>> {
         &mut self.headers
     }
 }
 
-impl std::fmt::Display for RawHeader {
+impl std::fmt::Display for RawHeaderBlock {
     fn fmt(&self, w: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         for (key, value) in self.as_ref().iter() {
             writeln!(
@@ -52,7 +52,7 @@ impl std::fmt::Display for RawHeader {
 #[derive(Clone, Debug, PartialEq)]
 pub struct RawRecord {
     /// The headers on this record.
-    pub headers: RawHeader,
+    pub headers: RawHeaderBlock,
     /// The data body of this record.
     pub body: Vec<u8>,
 }
@@ -75,7 +75,7 @@ pub struct RecordBuilder {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Record {
     // NB: invariant: does not contain the headers stored in the struct
-    headers: RawHeader,
+    headers: RawHeaderBlock,
     record_date: DateTime<Utc>,
     record_id: String,
     record_type: RecordType,
@@ -98,7 +98,7 @@ impl Record {
     }
 
     /// Transform this record into a raw record containing the same data.
-    pub fn into_raw_parts(self) -> (RawHeader, Vec<u8>) {
+    pub fn into_raw_parts(self) -> (RawHeaderBlock, Vec<u8>) {
         let Record {
             mut headers,
             record_date,
@@ -340,7 +340,7 @@ impl Record {
 impl Default for Record {
     fn default() -> Record {
         Record {
-            headers: RawHeader {
+            headers: RawHeaderBlock {
                 version: "WARC/1.0".to_string(),
                 headers: HashMap::new(),
             },
@@ -531,7 +531,7 @@ impl RecordBuilder {
         self
     }
 
-    pub fn build_raw(self) -> (RawHeader, Vec<u8>) {
+    pub fn build_raw(self) -> (RawHeaderBlock, Vec<u8>) {
         let RecordBuilder {
             value,
             broken_headers,
@@ -703,7 +703,7 @@ mod record_tests {
 #[cfg(test)]
 mod raw_tests {
     use crate::header::WarcHeader;
-    use crate::{RawHeader, RawRecord, Record, RecordType};
+    use crate::{RawHeaderBlock, RawRecord, Record, RecordType};
 
     use std::collections::HashMap;
     use std::convert::TryFrom;
@@ -711,7 +711,7 @@ mod raw_tests {
     #[test]
     fn create() {
         let record = RawRecord {
-            headers: RawHeader {
+            headers: RawHeaderBlock {
                 version: "WARC/1.0".to_owned(),
                 headers: HashMap::new(),
             },
@@ -724,7 +724,7 @@ mod raw_tests {
     #[test]
     fn create_with_headers() {
         let record = RawRecord {
-            headers: RawHeader {
+            headers: RawHeaderBlock {
                 version: "WARC/1.0".to_owned(),
                 headers: vec![(
                     WarcHeader::WarcType,
@@ -742,7 +742,7 @@ mod raw_tests {
     #[test]
     fn verify_ok() {
         let record = RawRecord {
-            headers: RawHeader {
+            headers: RawHeaderBlock {
                 version: "WARC/1.0".to_owned(),
                 headers: vec![
                     (WarcHeader::WarcType, b"dunno".to_vec()),
@@ -765,7 +765,7 @@ mod raw_tests {
     #[test]
     fn verify_missing_type() {
         let record = RawRecord {
-            headers: RawHeader {
+            headers: RawHeaderBlock {
                 version: "WARC/1.0".to_owned(),
                 headers: vec![
                     (WarcHeader::ContentLength, b"5".to_vec()),
@@ -787,7 +787,7 @@ mod raw_tests {
     #[test]
     fn verify_missing_content_length() {
         let record = RawRecord {
-            headers: RawHeader {
+            headers: RawHeaderBlock {
                 version: "WARC/1.0".to_owned(),
                 headers: vec![
                     (WarcHeader::WarcType, b"dunno".to_vec()),
@@ -809,7 +809,7 @@ mod raw_tests {
     #[test]
     fn verify_missing_record_id() {
         let record = RawRecord {
-            headers: RawHeader {
+            headers: RawHeaderBlock {
                 version: "WARC/1.0".to_owned(),
                 headers: vec![
                     (WarcHeader::WarcType, b"dunno".to_vec()),
@@ -828,7 +828,7 @@ mod raw_tests {
     #[test]
     fn verify_missing_date() {
         let record = RawRecord {
-            headers: RawHeader {
+            headers: RawHeaderBlock {
                 version: "WARC/1.0".to_owned(),
                 headers: vec![
                     (WarcHeader::WarcType, b"dunno".to_vec()),
@@ -851,7 +851,7 @@ mod raw_tests {
 #[cfg(test)]
 mod builder_tests {
     use crate::header::WarcHeader;
-    use crate::{RawHeader, RawRecord, Record, RecordBuilder, RecordType, TruncatedType};
+    use crate::{RawHeaderBlock, RawRecord, Record, RecordBuilder, RecordType, TruncatedType};
 
     use std::convert::TryFrom;
 
@@ -888,7 +888,7 @@ mod builder_tests {
     #[test]
     fn create_with_headers() {
         let record = RawRecord {
-            headers: RawHeader {
+            headers: RawHeaderBlock {
                 version: "WARC/1.0".to_owned(),
                 headers: vec![(
                     WarcHeader::WarcType,
@@ -906,7 +906,7 @@ mod builder_tests {
     #[test]
     fn verify_ok() {
         let record = RawRecord {
-            headers: RawHeader {
+            headers: RawHeaderBlock {
                 version: "WARC/1.0".to_owned(),
                 headers: vec![
                     (WarcHeader::WarcType, b"dunno".to_vec()),

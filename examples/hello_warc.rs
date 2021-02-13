@@ -1,12 +1,12 @@
 use chrono::prelude::*;
 
 use warc::header::WarcHeader;
-use warc::{RawHeader, Record, RecordType};
+use warc::{RawHeaderBlock, Record, RecordType};
 
 fn main() {
     let body = "hello warc! 👋".to_owned().into_bytes();
 
-    let headers = RawHeader {
+    let headers = RawHeaderBlock {
         version: "1.0".to_owned(),
         headers: vec![
             (
