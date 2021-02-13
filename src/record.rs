@@ -46,9 +46,10 @@ impl std::fmt::Display for RawHeaderBlock {
     }
 }
 
-/// A single WARC record as parsed from a data stream.
+/// A data structure used for the formation of WARC records.
 ///
-/// It is guaranteed to be well-formed, but may not be valid according to the specification.
+/// The resulting record is guaranteed to be well-formed, but may not be valid according to the
+/// specification.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RawRecord {
     /// The headers on this record.
