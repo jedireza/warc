@@ -85,34 +85,32 @@ impl Record {
     /// Transform this record into a raw record containing the same data.
     ///
     /// This is similar to `to_raw`, but is more efficient because it avoids copying.
-    pub fn into_raw(self) -> RawRecord {
+    pub fn into_raw_parts(self) -> (RawHeader, Vec<u8>) {
         let Record {
-            mut raw,
+            raw: RawRecord { mut headers, body },
             record_date,
             record_id,
             record_type,
             ..
         } = self;
-        let insert1 = raw.headers.as_mut().insert(
+        let insert1 = headers.as_mut().insert(
             WarcHeader::ContentLength,
-            format!("{}", raw.body.len()).into(),
+            format!("{}", body.len()).into(),
         );
-        let insert2 = raw
-            .headers
+        let insert2 = headers
             .as_mut()
             .insert(WarcHeader::WarcType, record_type.to_string().into());
-        let insert3 = raw
-            .headers
+        let insert3 = headers
             .as_mut()
             .insert(WarcHeader::RecordID, record_id.into());
         let insert4 = if let Some(ref truncated_type) = self.truncated_type {
-            raw.headers
+            headers
                 .as_mut()
                 .insert(WarcHeader::Truncated, truncated_type.to_string().into())
         } else {
             None
         };
-        let insert5 = raw.headers.as_mut().insert(
+        let insert5 = headers.as_mut().insert(
             WarcHeader::Date,
             record_date
                 .to_rfc3339_opts(SecondsFormat::Secs, true)
@@ -128,7 +126,7 @@ impl Record {
             "invariant violation: raw struct contains externally stored fields"
         );
 
-        raw
+        (headers, body)
     }
 
     /// Create a raw record which contains the same data as this record.
@@ -461,13 +459,13 @@ impl std::convert::TryFrom<RawRecord> for Record {
 
 impl fmt::Display for Record {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.clone().into_raw().fmt(f)
+        self.to_raw().fmt(f)
     }
 }
 
 impl std::convert::From<Record> for RawRecord {
     fn from(record: Record) -> RawRecord {
-        record.into_raw()
+        record.to_raw()
     }
 }
 
@@ -567,10 +565,10 @@ impl RecordBuilder {
             broken_headers,
             ..
         } = self;
-        let mut raw = value.into_raw();
-        raw.headers.as_mut().extend(broken_headers);
+        let (mut headers, body) = value.into_raw_parts();
+        headers.as_mut().extend(broken_headers);
 
-        raw
+        RawRecord { headers, body }
     }
 
     pub fn build(self) -> Result<Record, WarcError> {
@@ -969,8 +967,8 @@ mod builder_tests {
                 .clone()
                 .build()
                 .unwrap()
-                .into_raw()
-                .headers
+                .into_raw_parts()
+                .0
                 .as_ref()
                 .get(&WarcHeader::ContentLength)
                 .unwrap(),
@@ -1017,8 +1015,8 @@ mod builder_tests {
         assert_eq!(record1, record2);
         assert_eq!(
             record1
-                .into_raw()
-                .headers
+                .into_raw_parts()
+                .0
                 .as_ref()
                 .get(&WarcHeader::WarcType),
             Some(&b"request".to_vec())
@@ -1045,8 +1043,8 @@ mod builder_tests {
         );
         assert_eq!(
             record
-                .into_raw()
-                .headers
+                .into_raw_parts()
+                .0
                 .as_ref()
                 .get(&WarcHeader::Date)
                 .unwrap(),
@@ -1076,8 +1074,8 @@ mod builder_tests {
         );
         assert_eq!(
             record
-                .into_raw()
-                .headers
+                .into_raw_parts()
+                .0
                 .as_ref()
                 .get(&WarcHeader::Date)
                 .unwrap(),
@@ -1118,8 +1116,8 @@ mod builder_tests {
         );
         assert_eq!(
             record
-                .into_raw()
-                .headers
+                .into_raw_parts()
+                .0
                 .as_ref()
                 .get(&WarcHeader::RecordID)
                 .unwrap(),
@@ -1149,8 +1147,8 @@ mod builder_tests {
         );
         assert_eq!(
             record
-                .into_raw()
-                .headers
+                .into_raw_parts()
+                .0
                 .as_ref()
                 .get(&WarcHeader::RecordID)
                 .unwrap(),
@@ -1188,8 +1186,8 @@ mod builder_tests {
         );
         assert_eq!(
             record
-                .into_raw()
-                .headers
+                .into_raw_parts()
+                .0
                 .as_ref()
                 .get(&WarcHeader::Truncated)
                 .unwrap(),
@@ -1219,8 +1217,8 @@ mod builder_tests {
         );
         assert_eq!(
             record
-                .into_raw()
-                .headers
+                .into_raw_parts()
+                .0
                 .as_ref()
                 .get(&WarcHeader::Truncated)
                 .unwrap(),
@@ -1243,8 +1241,8 @@ mod builder_tests {
                 .clone()
                 .build()
                 .unwrap()
-                .into_raw()
-                .headers
+                .into_raw_parts()
+                .0
                 .as_ref()
                 .get(&WarcHeader::Truncated)
                 .unwrap()
