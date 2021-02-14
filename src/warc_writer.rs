@@ -1,4 +1,4 @@
-use crate::{BufferedBody, RawHeaderBlock, Record};
+use crate::{BufferedBody, RawRecordHeader, Record};
 
 use std::fs;
 use std::io;
@@ -32,7 +32,7 @@ impl<W: Write> WarcWriter<W> {
     /// Write a single raw record.
     ///
     /// The number of bytes written is returned upon success.
-    pub fn write_raw<B>(&mut self, headers: RawHeaderBlock, body: &B) -> io::Result<usize>
+    pub fn write_raw<B>(&mut self, headers: RawRecordHeader, body: &B) -> io::Result<usize>
     where
         B: AsRef<[u8]>,
     {

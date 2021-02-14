@@ -1,14 +1,14 @@
 use chrono::prelude::*;
 
 use warc::header::WarcHeader;
-use warc::{BufferedBody, RawHeaderBlock, Record, RecordType, WarcWriter};
+use warc::{BufferedBody, RawRecordHeader, Record, RecordType, WarcWriter};
 
 fn main() -> Result<(), std::io::Error> {
     let date = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let body = format!("wrote to the file on {}", date);
     let body = body.into_bytes();
 
-    let headers = RawHeaderBlock {
+    let headers = RawRecordHeader {
         version: "1.0".to_owned(),
         headers: vec![
             (
