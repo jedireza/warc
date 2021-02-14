@@ -64,6 +64,7 @@ impl AsMut<HashMap<WarcHeader, Vec<u8>>> for RawHeaderBlock {
 
 impl std::fmt::Display for RawHeaderBlock {
     fn fmt(&self, w: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        writeln!(w, "WARC/{}", self.version)?;
         for (key, value) in self.as_ref().iter() {
             writeln!(
                 w,
@@ -72,6 +73,8 @@ impl std::fmt::Display for RawHeaderBlock {
                 String::from_utf8_lossy(&value)
             )?;
         }
+        writeln!(w)?;
+
         Ok(())
     }
 }
