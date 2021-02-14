@@ -4,7 +4,7 @@ use warc::header::WarcHeader;
 use warc::{BufferedBody, RawHeaderBlock, Record, RecordType};
 
 fn main() {
-    let body = "hello warc! 👋".to_owned().into_bytes();
+    let body = "hello warc! 👋".to_owned();
 
     let headers = RawHeaderBlock {
         version: "1.0".to_owned(),
@@ -33,6 +33,5 @@ fn main() {
         .collect(),
     };
 
-    println!("{:?}", headers);
-    println!("{:?}", body);
+    println!("{}{}", headers, body);
 }
