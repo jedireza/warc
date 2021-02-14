@@ -16,17 +16,27 @@ mod streaming_trait {
     use std::io::Read;
 
     /// A tag indicating how the body is stored within a record.
-    pub trait StreamingType: Clone {}
+    pub trait StreamingType: Clone {
+        fn content_length(&self) -> u64;
+    }
 
     #[derive(Clone, Debug, PartialEq)]
     /// A tag indicating the body is stored in a buffer within the record.
     pub struct BufferedBody(pub Vec<u8>);
-    impl StreamingType for BufferedBody {}
+    impl StreamingType for BufferedBody {
+        fn content_length(&self) -> u64 {
+            self.0.len() as u64
+        }
+    }
 
     #[derive(Clone)]
     /// A tag indicating the body is streamed from a reader.
-    pub struct StreamingBody<T: Read + Clone>(T);
-    impl<T: Read + Clone> StreamingType for StreamingBody<T> {}
+    pub struct StreamingBody<T: Read + Clone>(T, u64);
+    impl<T: Read + Clone> StreamingType for StreamingBody<T> {
+        fn content_length(&self) -> u64 {
+            self.1
+        }
+    }
 }
 
 /// A header block of a single WARC record as parsed from a data stream.
@@ -104,7 +114,7 @@ pub struct Record<T: StreamingType> {
     body: T,
 }
 
-impl Record<BufferedBody> {
+impl<T: StreamingType> Record<T> {
     /// Create a new empty record with default values.
     ///
     /// Using a `RecordBuilder` is more efficient when creating records from known data.
@@ -116,52 +126,6 @@ impl Record<BufferedBody> {
     /// * WARC-Content-Length: 0
     pub fn new() -> Record<BufferedBody> {
         Record::default()
-    }
-
-    /// Transform this record into a raw record containing the same data.
-    pub fn into_raw_parts(self) -> (RawHeaderBlock, Vec<u8>) {
-        let Record {
-            mut headers,
-            record_date,
-            record_id,
-            record_type,
-            body,
-            ..
-        } = self;
-        let insert1 = headers.as_mut().insert(
-            WarcHeader::ContentLength,
-            format!("{}", body.0.len()).into(),
-        );
-        let insert2 = headers
-            .as_mut()
-            .insert(WarcHeader::WarcType, record_type.to_string().into());
-        let insert3 = headers
-            .as_mut()
-            .insert(WarcHeader::RecordID, record_id.into());
-        let insert4 = if let Some(ref truncated_type) = self.truncated_type {
-            headers
-                .as_mut()
-                .insert(WarcHeader::Truncated, truncated_type.to_string().into())
-        } else {
-            None
-        };
-        let insert5 = headers.as_mut().insert(
-            WarcHeader::Date,
-            record_date
-                .to_rfc3339_opts(SecondsFormat::Secs, true)
-                .into(),
-        );
-
-        debug_assert!(
-            insert1.is_none()
-                && insert2.is_none()
-                && insert3.is_none()
-                && insert4.is_none()
-                && insert5.is_none(),
-            "invariant violation: raw struct contains externally stored fields"
-        );
-
-        (headers, body.0)
     }
 
     /// Generate and return a new value suitable for use in the WARC-Record-ID header.
@@ -203,13 +167,6 @@ impl Record<BufferedBody> {
                 )
             })
             .map(|date| date.into())
-    }
-
-    /// Return the Content-Length header for this record.
-    ///
-    /// This value is guaranteed to match the actual length of the body.
-    pub fn content_length(&self) -> u64 {
-        self.body.0.len() as u64
     }
 
     /// Return the WARC version string of this record.
@@ -272,7 +229,9 @@ impl Record<BufferedBody> {
     /// Return the WARC header requested if present in this record, or `None`.
     pub fn header(&self, header: WarcHeader) -> Option<Cow<'_, str>> {
         match &header {
-            WarcHeader::ContentLength => Some(Cow::Owned(format!("{}", self.content_length()))),
+            WarcHeader::ContentLength => {
+                Some(Cow::Owned(format!("{}", self.body.content_length())))
+            }
             WarcHeader::RecordID => Some(Cow::Borrowed(self.warc_id())),
             WarcHeader::WarcType => Some(Cow::Owned(self.record_type.to_string())),
             WarcHeader::Date => Some(Cow::Owned(
@@ -303,8 +262,10 @@ impl Record<BufferedBody> {
         let value = value.into();
         match &header {
             WarcHeader::Date => {
-                let old_date =
-                    std::mem::replace(&mut self.record_date, Record::parse_record_date(&value)?);
+                let old_date = std::mem::replace(
+                    &mut self.record_date,
+                    Record::<T>::parse_record_date(&value)?,
+                );
                 Ok(Some(Cow::Owned(
                     old_date.to_rfc3339_opts(SecondsFormat::Secs, true),
                 )))
@@ -323,7 +284,7 @@ impl Record<BufferedBody> {
                 Ok(old_type.map(|old| (Cow::Owned(old.to_string()))))
             }
             WarcHeader::ContentLength => {
-                if Record::parse_content_length(&value)? != self.content_length() {
+                if Record::<T>::parse_content_length(&value)? != self.body.content_length() {
                     Err(WarcError::MalformedHeader(
                         WarcHeader::ContentLength,
                         "content length != body size".to_string(),
@@ -338,6 +299,15 @@ impl Record<BufferedBody> {
                 .insert(header, Vec::from(value))
                 .map(|v| Cow::Owned(String::from_utf8(v).unwrap()))),
         }
+    }
+}
+
+impl Record<BufferedBody> {
+    /// Return the Content-Length header for this record.
+    ///
+    /// This value is guaranteed to match the actual length of the body.
+    pub fn content_length(&self) -> u64 {
+        self.body.0.len() as u64
     }
 
     /// Return the body of this record.
@@ -357,6 +327,52 @@ impl Record<BufferedBody> {
     pub fn replace_body<V: Into<Vec<u8>>>(&mut self, new_body: V) {
         let _: Vec<u8> = std::mem::replace(&mut self.body.0, new_body.into());
     }
+
+    /// Transform this record into a raw record containing the same data.
+    pub fn into_raw_parts(self) -> (RawHeaderBlock, Vec<u8>) {
+        let Record {
+            mut headers,
+            record_date,
+            record_id,
+            record_type,
+            body,
+            ..
+        } = self;
+        let insert1 = headers.as_mut().insert(
+            WarcHeader::ContentLength,
+            format!("{}", body.0.len()).into(),
+        );
+        let insert2 = headers
+            .as_mut()
+            .insert(WarcHeader::WarcType, record_type.to_string().into());
+        let insert3 = headers
+            .as_mut()
+            .insert(WarcHeader::RecordID, record_id.into());
+        let insert4 = if let Some(ref truncated_type) = self.truncated_type {
+            headers
+                .as_mut()
+                .insert(WarcHeader::Truncated, truncated_type.to_string().into())
+        } else {
+            None
+        };
+        let insert5 = headers.as_mut().insert(
+            WarcHeader::Date,
+            record_date
+                .to_rfc3339_opts(SecondsFormat::Secs, true)
+                .into(),
+        );
+
+        debug_assert!(
+            insert1.is_none()
+                && insert2.is_none()
+                && insert3.is_none()
+                && insert4.is_none()
+                && insert5.is_none(),
+            "invariant violation: raw struct contains externally stored fields"
+        );
+
+        (headers, body.0)
+    }
 }
 
 impl Default for Record<BufferedBody> {
@@ -367,7 +383,7 @@ impl Default for Record<BufferedBody> {
                 headers: HashMap::new(),
             },
             record_date: Utc::now(),
-            record_id: Record::generate_record_id(),
+            record_id: Record::<BufferedBody>::generate_record_id(),
             record_type: RecordType::Resource,
             truncated_type: None,
             body: BufferedBody(vec![]),
@@ -387,7 +403,7 @@ impl std::convert::TryFrom<RawRecord> for Record<BufferedBody> {
                     WarcError::MalformedHeader(WarcHeader::Date, "not a UTF-8 string".to_string())
                 })
             })
-            .and_then(|len| Record::parse_content_length(&len))
+            .and_then(|len| Record::<BufferedBody>::parse_content_length(&len))
             .and_then(|len| {
                 if len == raw.body.len() as u64 {
                     Ok(())
@@ -435,7 +451,7 @@ impl std::convert::TryFrom<RawRecord> for Record<BufferedBody> {
                     WarcError::MalformedHeader(WarcHeader::Date, "not a UTF-8 string".to_string())
                 })
             })
-            .and_then(|date| Record::parse_record_date(&date))?;
+            .and_then(|date| Record::<BufferedBody>::parse_record_date(&date))?;
 
         let RawRecord { headers, body } = raw;
         Ok(Record {
@@ -587,7 +603,7 @@ impl RecordBuilder {
 #[cfg(test)]
 mod record_tests {
     use crate::header::WarcHeader;
-    use crate::{Record, RecordType};
+    use crate::{BufferedBody, Record, RecordType};
 
     use chrono::prelude::*;
 
@@ -595,7 +611,7 @@ mod record_tests {
     fn default() {
         let before = Utc::now();
         std::thread::sleep(std::time::Duration::from_millis(10));
-        let record = Record::default();
+        let record = Record::<BufferedBody>::default();
         std::thread::sleep(std::time::Duration::from_millis(10));
         let after = Utc::now();
         assert_eq!(record.content_length(), 0);
@@ -607,14 +623,14 @@ mod record_tests {
 
     #[test]
     fn impl_eq() {
-        let record1 = Record::default();
+        let record1 = Record::<BufferedBody>::default();
         let record2 = record1.clone();
         assert_eq!(record1, record2);
     }
 
     #[test]
     fn body() {
-        let mut record = Record::default();
+        let mut record = Record::<BufferedBody>::default();
         assert_eq!(record.content_length(), 0);
         assert_eq!(record.body(), &[]);
         record.replace_body(b"hello!!".to_vec());
@@ -627,7 +643,7 @@ mod record_tests {
 
     #[test]
     fn add_header() {
-        let mut record = Record::default();
+        let mut record = Record::<BufferedBody>::default();
         assert!(record.header(WarcHeader::TargetURI).is_none());
         assert!(record
             .set_header(WarcHeader::TargetURI, "https://www.rust-lang.org")
@@ -652,7 +668,7 @@ mod record_tests {
 
     #[test]
     fn set_header_override_content_length() {
-        let mut record = Record::default();
+        let mut record = Record::<BufferedBody>::default();
         assert_eq!(record.header(WarcHeader::ContentLength).unwrap(), "0");
         assert!(record
             .set_header(WarcHeader::ContentLength, "really short")
@@ -669,7 +685,7 @@ mod record_tests {
 
     #[test]
     fn set_header_override_warc_date() {
-        let mut record = Record::default();
+        let mut record = Record::<BufferedBody>::default();
         let old_date = record.date().to_rfc3339_opts(SecondsFormat::Secs, true);
         assert_eq!(record.header(WarcHeader::Date).unwrap(), old_date);
         assert!(record.set_header(WarcHeader::Date, "yesterday").is_err());
@@ -688,7 +704,7 @@ mod record_tests {
 
     #[test]
     fn set_header_override_warc_record_id() {
-        let mut record = Record::default();
+        let mut record = Record::<BufferedBody>::default();
         let old_id = record.warc_id().to_string();
         assert_eq!(
             record.header(WarcHeader::RecordID).unwrap(),
@@ -709,7 +725,7 @@ mod record_tests {
 
     #[test]
     fn set_header_override_warc_type() {
-        let mut record = Record::default();
+        let mut record = Record::<BufferedBody>::default();
         assert_eq!(record.header(WarcHeader::WarcType).unwrap(), "resource");
         assert_eq!(
             record
@@ -725,7 +741,7 @@ mod record_tests {
 #[cfg(test)]
 mod raw_tests {
     use crate::header::WarcHeader;
-    use crate::{RawHeaderBlock, RawRecord, Record, RecordType};
+    use crate::{BufferedBody, RawHeaderBlock, RawRecord, Record, RecordType};
 
     use std::collections::HashMap;
     use std::convert::TryFrom;
@@ -781,7 +797,7 @@ mod raw_tests {
             body: b"12345".to_vec(),
         };
 
-        assert!(Record::try_from(record).is_ok());
+        assert!(Record::<BufferedBody>::try_from(record).is_ok());
     }
 
     #[test]
@@ -803,7 +819,7 @@ mod raw_tests {
             body: b"12345".to_vec(),
         };
 
-        assert!(Record::try_from(record).is_err());
+        assert!(Record::<BufferedBody>::try_from(record).is_err());
     }
 
     #[test]
@@ -825,7 +841,7 @@ mod raw_tests {
             body: b"12345".to_vec(),
         };
 
-        assert!(Record::try_from(record).is_err());
+        assert!(Record::<BufferedBody>::try_from(record).is_err());
     }
 
     #[test]
@@ -844,7 +860,7 @@ mod raw_tests {
             body: b"12345".to_vec(),
         };
 
-        assert!(Record::try_from(record).is_err());
+        assert!(Record::<BufferedBody>::try_from(record).is_err());
     }
 
     #[test]
@@ -866,14 +882,16 @@ mod raw_tests {
             body: b"12345".to_vec(),
         };
 
-        assert!(Record::try_from(record).is_err());
+        assert!(Record::<BufferedBody>::try_from(record).is_err());
     }
 }
 
 #[cfg(test)]
 mod builder_tests {
     use crate::header::WarcHeader;
-    use crate::{RawHeaderBlock, RawRecord, Record, RecordBuilder, RecordType, TruncatedType};
+    use crate::{
+        BufferedBody, RawHeaderBlock, RawRecord, Record, RecordBuilder, RecordType, TruncatedType,
+    };
 
     use std::convert::TryFrom;
 
@@ -945,7 +963,7 @@ mod builder_tests {
             body: b"12345".to_vec(),
         };
 
-        assert!(Record::try_from(record).is_ok());
+        assert!(Record::<BufferedBody>::try_from(record).is_ok());
     }
 
     #[test]
@@ -1020,7 +1038,7 @@ mod builder_tests {
         const DATE_STRING_1: &[u8] = b"2020-07-18T02:12:45Z";
 
         let mut builder = RecordBuilder::default();
-        builder.date(Record::parse_record_date(DATE_STRING_0).unwrap());
+        builder.date(Record::<BufferedBody>::parse_record_date(DATE_STRING_0).unwrap());
 
         let record = builder.clone().build().unwrap();
         assert_eq!(

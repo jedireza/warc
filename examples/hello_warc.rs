@@ -1,7 +1,7 @@
 use chrono::prelude::*;
 
 use warc::header::WarcHeader;
-use warc::{RawHeaderBlock, Record, RecordType};
+use warc::{BufferedBody, RawHeaderBlock, Record, RecordType};
 
 fn main() {
     let body = "hello warc! 👋".to_owned().into_bytes();
@@ -11,7 +11,7 @@ fn main() {
         headers: vec![
             (
                 WarcHeader::RecordID,
-                Record::generate_record_id().into_bytes(),
+                Record::<BufferedBody>::generate_record_id().into_bytes(),
             ),
             (
                 WarcHeader::WarcType,
