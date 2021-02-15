@@ -9,7 +9,7 @@ use crate::record_type::RecordType;
 use crate::truncated_type::TruncatedType;
 use crate::Error as WarcError;
 
-pub use streaming_trait::BufferedBody;
+pub use streaming_trait::{BufferedBody, MissingBody};
 use streaming_trait::StreamingType;
 
 mod streaming_trait {
@@ -37,6 +37,14 @@ mod streaming_trait {
             self.1
         }
     }
+
+    #[derive(Clone, Copy)]
+    pub struct MissingBody();
+    impl StreamingType for MissingBody {
+        fn content_length(&self) -> u64 {
+            0
+        }
+    }
 }
 
 /// A header block of a single WARC record as parsed from a data stream.
@@ -62,6 +70,65 @@ impl AsMut<HashMap<WarcHeader, Vec<u8>>> for RawRecordHeader {
     }
 }
 
+impl std::convert::TryFrom<RawRecordHeader> for Record<MissingBody> {
+    type Error = WarcError;
+    fn try_from(mut headers: RawRecordHeader) -> Result<Self, WarcError> {
+        headers
+            .as_mut()
+            .remove(&WarcHeader::ContentLength)
+            .ok_or_else(|| WarcError::MissingHeader(WarcHeader::ContentLength))
+            .and_then(|vec| {
+                String::from_utf8(vec).map_err(|_| {
+                    WarcError::MalformedHeader(WarcHeader::Date, "not a UTF-8 string".to_string())
+                })
+            })?;
+
+        let record_type = headers
+            .as_mut()
+            .remove(&WarcHeader::WarcType)
+            .ok_or_else(|| WarcError::MissingHeader(WarcHeader::WarcType))
+            .and_then(|vec| {
+                String::from_utf8(vec).map_err(|_| {
+                    WarcError::MalformedHeader(
+                        WarcHeader::WarcType,
+                        "not a UTF-8 string".to_string(),
+                    )
+                })
+            })
+            .map(|rtype| rtype.into())?;
+
+        let record_id = headers
+            .as_mut()
+            .remove(&WarcHeader::RecordID)
+            .ok_or_else(|| WarcError::MissingHeader(WarcHeader::RecordID))
+            .and_then(|vec| {
+                String::from_utf8(vec).map_err(|_| {
+                    WarcError::MalformedHeader(WarcHeader::Date, "not a UTF-8 string".to_string())
+                })
+            })?;
+
+        let record_date = headers
+            .as_mut()
+            .remove(&WarcHeader::Date)
+            .ok_or_else(|| WarcError::MissingHeader(WarcHeader::Date))
+            .and_then(|vec| {
+                String::from_utf8(vec).map_err(|_| {
+                    WarcError::MalformedHeader(WarcHeader::Date, "not a UTF-8 string".to_string())
+                })
+            })
+            .and_then(|date| Record::<BufferedBody>::parse_record_date(&date))?;
+
+        Ok(Record {
+            headers,
+            record_date,
+            record_id,
+            record_type,
+            body: MissingBody(),
+            ..Default::default()
+        })
+    }
+}
+
 impl std::fmt::Display for RawRecordHeader {
     fn fmt(&self, w: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         writeln!(w, "WARC/{}", self.version)?;
@@ -79,18 +146,6 @@ impl std::fmt::Display for RawRecordHeader {
     }
 }
 
-/// A data structure used for the formation of WARC records.
-///
-/// The resulting record is guaranteed to be well-formed, but may not be valid according to the
-/// specification.
-#[derive(Clone, Debug, PartialEq)]
-pub struct RawRecord {
-    /// The headers on this record.
-    pub headers: RawRecordHeader,
-    /// The data body of this record.
-    pub body: Vec<u8>,
-}
-
 /// A builder for WARC records from data.
 #[derive(Clone, Default)]
 pub struct RecordBuilder {
@@ -105,7 +160,7 @@ pub struct RecordBuilder {
 /// * The validity of the WARC-Record-ID header is not checked
 /// * Date information not in the UTC timezone will be silently converted to UTC
 ///
-/// This record can be constructed by a `RecordBuilder` or by a fallable cast from a `RawRecord`.
+/// This record can be constructed by a `RecordBuilder`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Record<T: StreamingType> {
     // NB: invariant: does not contain the headers stored in the struct
@@ -394,80 +449,6 @@ impl Default for Record<BufferedBody> {
     }
 }
 
-impl std::convert::TryFrom<RawRecord> for Record<BufferedBody> {
-    type Error = WarcError;
-    fn try_from(mut raw: RawRecord) -> Result<Self, WarcError> {
-        raw.headers
-            .as_mut()
-            .remove(&WarcHeader::ContentLength)
-            .ok_or_else(|| WarcError::MissingHeader(WarcHeader::ContentLength))
-            .and_then(|vec| {
-                String::from_utf8(vec).map_err(|_| {
-                    WarcError::MalformedHeader(WarcHeader::Date, "not a UTF-8 string".to_string())
-                })
-            })
-            .and_then(|len| Record::<BufferedBody>::parse_content_length(&len))
-            .and_then(|len| {
-                if len == raw.body.len() as u64 {
-                    Ok(())
-                } else {
-                    Err(WarcError::MalformedHeader(
-                        WarcHeader::ContentLength,
-                        "content length != body length".to_string(),
-                    ))
-                }
-            })?;
-
-        let record_type = raw
-            .headers
-            .as_mut()
-            .remove(&WarcHeader::WarcType)
-            .ok_or_else(|| WarcError::MissingHeader(WarcHeader::WarcType))
-            .and_then(|vec| {
-                String::from_utf8(vec).map_err(|_| {
-                    WarcError::MalformedHeader(
-                        WarcHeader::WarcType,
-                        "not a UTF-8 string".to_string(),
-                    )
-                })
-            })
-            .map(|rtype| rtype.into())?;
-
-        let record_id = raw
-            .headers
-            .as_mut()
-            .remove(&WarcHeader::RecordID)
-            .ok_or_else(|| WarcError::MissingHeader(WarcHeader::RecordID))
-            .and_then(|vec| {
-                String::from_utf8(vec).map_err(|_| {
-                    WarcError::MalformedHeader(WarcHeader::Date, "not a UTF-8 string".to_string())
-                })
-            })?;
-
-        let record_date = raw
-            .headers
-            .as_mut()
-            .remove(&WarcHeader::Date)
-            .ok_or_else(|| WarcError::MissingHeader(WarcHeader::Date))
-            .and_then(|vec| {
-                String::from_utf8(vec).map_err(|_| {
-                    WarcError::MalformedHeader(WarcHeader::Date, "not a UTF-8 string".to_string())
-                })
-            })
-            .and_then(|date| Record::<BufferedBody>::parse_record_date(&date))?;
-
-        let RawRecord { headers, body } = raw;
-        Ok(Record {
-            headers,
-            record_date,
-            record_id,
-            record_type,
-            body: BufferedBody(body),
-            ..Default::default()
-        })
-    }
-}
-
 impl fmt::Display for Record<BufferedBody> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let (headers, body) = self.clone().into_raw_parts();
@@ -475,34 +456,19 @@ impl fmt::Display for Record<BufferedBody> {
     }
 }
 
-impl std::convert::From<Record<BufferedBody>> for RawRecord {
-    fn from(record: Record<BufferedBody>) -> RawRecord {
-        let (headers, body) = record.clone().into_raw_parts();
-        RawRecord { headers, body }
-    }
-}
-
-impl fmt::Display for RawRecord {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "WARC/{}", self.headers.version)?;
-
-        for (token, value) in self.headers.as_ref().iter() {
-            writeln!(
-                f,
-                "{}: {}",
-                token.to_string(),
-                String::from_utf8_lossy(value)
-            )?;
+impl Default for Record<MissingBody> {
+    fn default() -> Record<MissingBody> {
+        Record {
+            headers: RawRecordHeader {
+                version: "WARC/1.0".to_string(),
+                headers: HashMap::new(),
+            },
+            record_date: Utc::now(),
+            record_id: Record::<MissingBody>::generate_record_id(),
+            record_type: RecordType::Resource,
+            truncated_type: None,
+            body: MissingBody(),
         }
-        writeln!(f)?;
-
-        if !self.body.is_empty() {
-            writeln!(f, "\n{}", String::from_utf8_lossy(&self.body))?;
-        }
-
-        writeln!(f)?;
-
-        Ok(())
     }
 }
 
@@ -744,148 +710,127 @@ mod record_tests {
 #[cfg(test)]
 mod raw_tests {
     use crate::header::WarcHeader;
-    use crate::{BufferedBody, RawRecordHeader, RawRecord, Record, RecordType};
+    use crate::{MissingBody, RawRecordHeader, Record, RecordType};
 
     use std::collections::HashMap;
     use std::convert::TryFrom;
 
     #[test]
     fn create() {
-        let record = RawRecord {
-            headers: RawRecordHeader {
-                version: "WARC/1.0".to_owned(),
-                headers: HashMap::new(),
-            },
-            body: vec![],
+        let headers = RawRecordHeader {
+            version: "WARC/1.0".to_owned(),
+            headers: HashMap::new(),
         };
 
-        assert_eq!(record.body.len(), 0);
+        assert_eq!(headers.as_ref().len(), 0);
     }
 
     #[test]
     fn create_with_headers() {
-        let record = RawRecord {
-            headers: RawRecordHeader {
-                version: "WARC/1.0".to_owned(),
-                headers: vec![(
-                    WarcHeader::WarcType,
-                    RecordType::WarcInfo.to_string().into_bytes(),
-                )]
-                .into_iter()
-                .collect(),
-            },
-            body: vec![],
+        let headers = RawRecordHeader {
+            version: "WARC/1.0".to_owned(),
+            headers: vec![(
+                WarcHeader::WarcType,
+                RecordType::WarcInfo.to_string().into_bytes(),
+            )]
+            .into_iter()
+            .collect(),
         };
 
-        assert_eq!(record.headers.as_ref().len(), 1);
+        assert_eq!(headers.as_ref().len(), 1);
     }
 
     #[test]
     fn verify_ok() {
-        let record = RawRecord {
-            headers: RawRecordHeader {
-                version: "WARC/1.0".to_owned(),
-                headers: vec![
-                    (WarcHeader::WarcType, b"dunno".to_vec()),
-                    (WarcHeader::ContentLength, b"5".to_vec()),
-                    (
-                        WarcHeader::RecordID,
-                        b"<urn:test:basic-record:record-0>".to_vec(),
-                    ),
-                    (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-                ]
-                .into_iter()
-                .collect(),
-            },
-            body: b"12345".to_vec(),
+        let headers = RawRecordHeader {
+            version: "WARC/1.0".to_owned(),
+            headers: vec![
+                (WarcHeader::WarcType, b"dunno".to_vec()),
+                (WarcHeader::ContentLength, b"5".to_vec()),
+                (
+                    WarcHeader::RecordID,
+                    b"<urn:test:basic-record:record-0>".to_vec(),
+                ),
+                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+            ]
+            .into_iter()
+            .collect(),
         };
 
-        assert!(Record::<BufferedBody>::try_from(record).is_ok());
+        assert!(Record::<MissingBody>::try_from(headers).is_ok());
     }
 
     #[test]
     fn verify_missing_type() {
-        let record = RawRecord {
-            headers: RawRecordHeader {
-                version: "WARC/1.0".to_owned(),
-                headers: vec![
-                    (WarcHeader::ContentLength, b"5".to_vec()),
-                    (
-                        WarcHeader::RecordID,
-                        b"<urn:test:basic-record:record-0>".to_vec(),
-                    ),
-                    (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-                ]
-                .into_iter()
-                .collect(),
-            },
-            body: b"12345".to_vec(),
+        let headers = RawRecordHeader {
+            version: "WARC/1.0".to_owned(),
+            headers: vec![
+                (WarcHeader::ContentLength, b"5".to_vec()),
+                (
+                    WarcHeader::RecordID,
+                    b"<urn:test:basic-record:record-0>".to_vec(),
+                ),
+                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+            ]
+            .into_iter()
+            .collect(),
         };
 
-        assert!(Record::<BufferedBody>::try_from(record).is_err());
+        assert!(Record::<MissingBody>::try_from(headers).is_err());
     }
 
     #[test]
     fn verify_missing_content_length() {
-        let record = RawRecord {
-            headers: RawRecordHeader {
-                version: "WARC/1.0".to_owned(),
-                headers: vec![
-                    (WarcHeader::WarcType, b"dunno".to_vec()),
-                    (
-                        WarcHeader::RecordID,
-                        b"<urn:test:basic-record:record-0>".to_vec(),
-                    ),
-                    (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-                ]
-                .into_iter()
-                .collect(),
-            },
-            body: b"12345".to_vec(),
+        let headers = RawRecordHeader {
+            version: "WARC/1.0".to_owned(),
+            headers: vec![
+                (WarcHeader::WarcType, b"dunno".to_vec()),
+                (
+                    WarcHeader::RecordID,
+                    b"<urn:test:basic-record:record-0>".to_vec(),
+                ),
+                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+            ]
+            .into_iter()
+            .collect(),
         };
 
-        assert!(Record::<BufferedBody>::try_from(record).is_err());
+        assert!(Record::<MissingBody>::try_from(headers).is_err());
     }
 
     #[test]
     fn verify_missing_record_id() {
-        let record = RawRecord {
-            headers: RawRecordHeader {
-                version: "WARC/1.0".to_owned(),
-                headers: vec![
-                    (WarcHeader::WarcType, b"dunno".to_vec()),
-                    (WarcHeader::ContentLength, b"5".to_vec()),
-                    (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-                ]
-                .into_iter()
-                .collect(),
-            },
-            body: b"12345".to_vec(),
+        let headers = RawRecordHeader {
+            version: "WARC/1.0".to_owned(),
+            headers: vec![
+                (WarcHeader::WarcType, b"dunno".to_vec()),
+                (WarcHeader::ContentLength, b"5".to_vec()),
+                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+            ]
+            .into_iter()
+            .collect(),
         };
 
-        assert!(Record::<BufferedBody>::try_from(record).is_err());
+        assert!(Record::<MissingBody>::try_from(headers).is_err());
     }
 
     #[test]
     fn verify_missing_date() {
-        let record = RawRecord {
-            headers: RawRecordHeader {
-                version: "WARC/1.0".to_owned(),
-                headers: vec![
-                    (WarcHeader::WarcType, b"dunno".to_vec()),
-                    (WarcHeader::ContentLength, b"5".to_vec()),
-                    (
-                        WarcHeader::RecordID,
-                        b"<urn:test:basic-record:record-0>".to_vec(),
-                    ),
-                ]
-                .into_iter()
-                .collect(),
-            },
-            body: b"12345".to_vec(),
+        let headers = RawRecordHeader {
+            version: "WARC/1.0".to_owned(),
+            headers: vec![
+                (WarcHeader::WarcType, b"dunno".to_vec()),
+                (WarcHeader::ContentLength, b"5".to_vec()),
+                (
+                    WarcHeader::RecordID,
+                    b"<urn:test:basic-record:record-0>".to_vec(),
+                ),
+            ]
+            .into_iter()
+            .collect(),
         };
 
-        assert!(Record::<BufferedBody>::try_from(record).is_err());
+        assert!(Record::<MissingBody>::try_from(headers).is_err());
     }
 }
 
@@ -893,7 +838,7 @@ mod raw_tests {
 mod builder_tests {
     use crate::header::WarcHeader;
     use crate::{
-        BufferedBody, RawRecordHeader, RawRecord, Record, RecordBuilder, RecordType, TruncatedType,
+        BufferedBody, MissingBody, RawRecordHeader, Record, RecordBuilder, RecordType, TruncatedType,
     };
 
     use std::convert::TryFrom;
@@ -930,43 +875,37 @@ mod builder_tests {
 
     #[test]
     fn create_with_headers() {
-        let record = RawRecord {
-            headers: RawRecordHeader {
-                version: "WARC/1.0".to_owned(),
-                headers: vec![(
-                    WarcHeader::WarcType,
-                    RecordType::WarcInfo.to_string().into_bytes(),
-                )]
-                .into_iter()
-                .collect(),
-            },
-            body: vec![],
+        let headers = RawRecordHeader {
+            version: "WARC/1.0".to_owned(),
+            headers: vec![(
+                WarcHeader::WarcType,
+                RecordType::WarcInfo.to_string().into_bytes(),
+            )]
+            .into_iter()
+            .collect(),
         };
 
-        assert_eq!(record.headers.as_ref().len(), 1);
+        assert_eq!(headers.as_ref().len(), 1);
     }
 
     #[test]
     fn verify_ok() {
-        let record = RawRecord {
-            headers: RawRecordHeader {
-                version: "WARC/1.0".to_owned(),
-                headers: vec![
-                    (WarcHeader::WarcType, b"dunno".to_vec()),
-                    (WarcHeader::ContentLength, b"5".to_vec()),
-                    (
-                        WarcHeader::RecordID,
-                        b"<urn:test:basic-record:record-0>".to_vec(),
-                    ),
-                    (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-                ]
-                .into_iter()
-                .collect(),
-            },
-            body: b"12345".to_vec(),
+        let headers = RawRecordHeader {
+            version: "WARC/1.0".to_owned(),
+            headers: vec![
+                (WarcHeader::WarcType, b"dunno".to_vec()),
+                (WarcHeader::ContentLength, b"5".to_vec()),
+                (
+                    WarcHeader::RecordID,
+                    b"<urn:test:basic-record:record-0>".to_vec(),
+                ),
+                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+            ]
+            .into_iter()
+            .collect(),
         };
 
-        assert!(Record::<BufferedBody>::try_from(record).is_ok());
+        assert!(Record::<MissingBody>::try_from(headers).is_ok());
     }
 
     #[test]
