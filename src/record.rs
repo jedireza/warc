@@ -502,37 +502,37 @@ impl RecordBuilder {
         self
     }
 
-    pub fn date(&mut self, date: DateTime<Utc>) -> &mut Self {
+    pub fn date(mut self, date: DateTime<Utc>) -> Self {
         self.value.set_date(date);
 
         self
     }
 
-    pub fn warc_id<S: Into<String>>(&mut self, id: S) -> &mut Self {
+    pub fn warc_id<S: Into<String>>(mut self, id: S) -> Self {
         self.value.set_warc_id(id);
 
         self
     }
 
-    pub fn version(&mut self, version: String) -> &mut Self {
+    pub fn version(mut self, version: String) -> Self {
         self.value.set_warc_version(version);
 
         self
     }
 
-    pub fn warc_type(&mut self, warc_type: RecordType) -> &mut Self {
+    pub fn warc_type(mut self, warc_type: RecordType) -> Self {
         self.value.set_warc_type(warc_type);
 
         self
     }
 
-    pub fn truncated_type(&mut self, trunc_type: TruncatedType) -> &mut Self {
+    pub fn truncated_type(mut self, trunc_type: TruncatedType) -> Self {
         self.value.set_truncated_type(trunc_type);
 
         self
     }
 
-    pub fn header<V: Into<Vec<u8>>>(&mut self, key: WarcHeader, value: V) -> &mut Self {
+    pub fn header<V: Into<Vec<u8>>>(mut self, key: WarcHeader, value: V) -> Self {
         self.broken_headers.insert(key.clone(), value.into());
 
         let is_ok;
@@ -983,7 +983,7 @@ mod builder_tests {
             &b"5".to_vec()
         );
 
-        builder.header(WarcHeader::ContentLength, "1");
+        builder = builder.header(WarcHeader::ContentLength, "1");
         assert_eq!(
             builder
                 .clone()
@@ -1000,11 +1000,8 @@ mod builder_tests {
 
     #[test]
     fn verify_build_record_type() {
-        let mut builder1 = RecordBuilder::default();
-        let mut builder2 = builder1.clone();
-
-        builder1.header(WarcHeader::WarcType, "request");
-        builder2.warc_type(RecordType::Request);
+        let builder1 = RecordBuilder::default().header(WarcHeader::WarcType, "request");
+        let builder2 = builder1.clone().warc_type(RecordType::Request);
 
         let record1 = builder1.build().unwrap();
         let record2 = builder2.build().unwrap();
@@ -1026,7 +1023,7 @@ mod builder_tests {
         const DATE_STRING_1: &[u8] = b"2020-07-18T02:12:45Z";
 
         let mut builder = RecordBuilder::default();
-        builder.date(Record::<BufferedBody>::parse_record_date(DATE_STRING_0).unwrap());
+        builder = builder.date(Record::<BufferedBody>::parse_record_date(DATE_STRING_0).unwrap());
 
         let record = builder.clone().build().unwrap();
         assert_eq!(
@@ -1049,7 +1046,7 @@ mod builder_tests {
             &DATE_STRING_0.as_bytes()
         );
 
-        builder.header(WarcHeader::Date, DATE_STRING_1.to_vec());
+        builder = builder.header(WarcHeader::Date, DATE_STRING_1.to_vec());
         let record = builder.clone().build().unwrap();
         assert_eq!(
             record
@@ -1071,7 +1068,7 @@ mod builder_tests {
             &DATE_STRING_1.to_vec()
         );
 
-        builder.header(WarcHeader::Date, b"not-a-dayTor:a:time".to_vec());
+        let builder = builder.header(WarcHeader::Date, b"not-a-dayTor:a:time".to_vec());
         assert!(builder.build().is_err());
     }
 
@@ -1081,7 +1078,7 @@ mod builder_tests {
         const RECORD_ID_1: &[u8] = b"<urn:test:verify-build-id:record-1>";
 
         let mut builder = RecordBuilder::default();
-        builder.warc_id(std::str::from_utf8(RECORD_ID_0).unwrap());
+        builder = builder.warc_id(std::str::from_utf8(RECORD_ID_0).unwrap());
 
         let record = builder.clone().build().unwrap();
         assert_eq!(
@@ -1104,7 +1101,7 @@ mod builder_tests {
             &RECORD_ID_0.to_vec()
         );
 
-        builder.header(WarcHeader::RecordID, RECORD_ID_1.to_vec());
+        let builder = builder.header(WarcHeader::RecordID, RECORD_ID_1.to_vec());
         let record = builder.clone().build().unwrap();
         assert_eq!(
             record
@@ -1133,7 +1130,7 @@ mod builder_tests {
         const TRUNCATED_TYPE_1: &[u8] = b"disconnect";
 
         let mut builder = RecordBuilder::default();
-        builder.truncated_type(TruncatedType::Length);
+        builder = builder.truncated_type(TruncatedType::Length);
 
         let record = builder.clone().build().unwrap();
         assert_eq!(
@@ -1156,7 +1153,7 @@ mod builder_tests {
             &TRUNCATED_TYPE_0.to_vec()
         );
 
-        builder.header(WarcHeader::Truncated, "disconnect");
+        builder = builder.header(WarcHeader::Truncated, "disconnect");
         let record = builder.clone().build().unwrap();
         assert_eq!(
             record
@@ -1178,7 +1175,7 @@ mod builder_tests {
             &TRUNCATED_TYPE_1.to_vec()
         );
 
-        builder.header(WarcHeader::Truncated, "foreign-intervention");
+        builder = builder.header(WarcHeader::Truncated, "foreign-intervention");
         assert_eq!(
             builder
                 .clone()
