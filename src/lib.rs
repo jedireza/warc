@@ -13,7 +13,7 @@ pub mod header;
 pub mod parser;
 
 mod record;
-pub use record::{BufferedBody, MissingBody, RawRecordHeader, Record, RecordBuilder};
+pub use record::{BufferedBody, EmptyBody, RawRecordHeader, Record, RecordBuilder};
 
 mod record_type;
 pub use record_type::RecordType;

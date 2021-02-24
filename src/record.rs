@@ -9,38 +9,39 @@ use crate::record_type::RecordType;
 use crate::truncated_type::TruncatedType;
 use crate::Error as WarcError;
 
-pub use streaming_trait::{BufferedBody, MissingBody};
-use streaming_trait::StreamingType;
+pub use streaming_trait::{BufferedBody, EmptyBody};
+use streaming_trait::BodyKind;
 
 mod streaming_trait {
     use std::io::Read;
 
-    /// A tag indicating how the body is stored within a record.
-    pub trait StreamingType: Clone {
+    /// An associated type indicating how the body of a record is represented.
+    pub trait BodyKind: Clone {
         fn content_length(&self) -> u64;
     }
 
     #[derive(Clone, Debug, PartialEq)]
-    /// A tag indicating the body is stored in a buffer within the record.
+    /// An associated type indicating the body is buffered within the record.
     pub struct BufferedBody(pub Vec<u8>);
-    impl StreamingType for BufferedBody {
+    impl BodyKind for BufferedBody {
         fn content_length(&self) -> u64 {
             self.0.len() as u64
         }
     }
 
     #[derive(Clone)]
-    /// A tag indicating the body is streamed from a reader.
+    /// An associated type indicating the body is streamed from a reader.
     pub struct StreamingBody<T: Read + Clone>(T, u64);
-    impl<T: Read + Clone> StreamingType for StreamingBody<T> {
+    impl<T: Read + Clone> BodyKind for StreamingBody<T> {
         fn content_length(&self) -> u64 {
             self.1
         }
     }
 
     #[derive(Clone, Copy)]
-    pub struct MissingBody();
-    impl StreamingType for MissingBody {
+    /// An associated type indicated the record has a zero-length body.
+    pub struct EmptyBody();
+    impl BodyKind for EmptyBody {
         fn content_length(&self) -> u64 {
             0
         }
@@ -50,6 +51,8 @@ mod streaming_trait {
 /// A header block of a single WARC record as parsed from a data stream.
 ///
 /// It is guaranteed to be well-formed, but may not be valid according to the specification.
+///
+/// Use the `Display` trait to generate the formatted representation.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RawRecordHeader {
     /// The WARC standard version this record reports conformance to.
@@ -70,7 +73,7 @@ impl AsMut<HashMap<WarcHeader, Vec<u8>>> for RawRecordHeader {
     }
 }
 
-impl std::convert::TryFrom<RawRecordHeader> for Record<MissingBody> {
+impl std::convert::TryFrom<RawRecordHeader> for Record<EmptyBody> {
     type Error = WarcError;
     fn try_from(mut headers: RawRecordHeader) -> Result<Self, WarcError> {
         headers
@@ -123,7 +126,7 @@ impl std::convert::TryFrom<RawRecordHeader> for Record<MissingBody> {
             record_date,
             record_id,
             record_type,
-            body: MissingBody(),
+            body: EmptyBody(),
             ..Default::default()
         })
     }
@@ -156,13 +159,17 @@ pub struct RecordBuilder {
 
 /// A single WARC record.
 ///
-/// It is guaranteed to be valid according to the specification it conforms to, except:
+/// A record can be constructed by a `RecordBuilder`, or by reading from a stream.
+///
+/// The associated type `T` indicates the representation of this record's body.
+///
+/// A record is guaranteed to be valid according to the specification it conforms to, except:
 /// * The validity of the WARC-Record-ID header is not checked
 /// * Date information not in the UTC timezone will be silently converted to UTC
 ///
-/// This record can be constructed by a `RecordBuilder`.
+/// Use the `Display` trait to generate the formatted representation.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Record<T: StreamingType> {
+pub struct Record<T: BodyKind> {
     // NB: invariant: does not contain the headers stored in the struct
     headers: RawRecordHeader,
     record_date: DateTime<Utc>,
@@ -172,7 +179,7 @@ pub struct Record<T: StreamingType> {
     body: T,
 }
 
-impl<T: StreamingType> Record<T> {
+impl<T: BodyKind> Record<T> {
     /// Create a new empty record with default values.
     ///
     /// Using a `RecordBuilder` is more efficient when creating records from known data.
@@ -456,18 +463,18 @@ impl fmt::Display for Record<BufferedBody> {
     }
 }
 
-impl Default for Record<MissingBody> {
-    fn default() -> Record<MissingBody> {
+impl Default for Record<EmptyBody> {
+    fn default() -> Record<EmptyBody> {
         Record {
             headers: RawRecordHeader {
                 version: "WARC/1.0".to_string(),
                 headers: HashMap::new(),
             },
             record_date: Utc::now(),
-            record_id: Record::<MissingBody>::generate_record_id(),
+            record_id: Record::<EmptyBody>::generate_record_id(),
             record_type: RecordType::Resource,
             truncated_type: None,
-            body: MissingBody(),
+            body: EmptyBody(),
         }
     }
 }
@@ -710,7 +717,7 @@ mod record_tests {
 #[cfg(test)]
 mod raw_tests {
     use crate::header::WarcHeader;
-    use crate::{MissingBody, RawRecordHeader, Record, RecordType};
+    use crate::{EmptyBody, RawRecordHeader, Record, RecordType};
 
     use std::collections::HashMap;
     use std::convert::TryFrom;
@@ -757,7 +764,7 @@ mod raw_tests {
             .collect(),
         };
 
-        assert!(Record::<MissingBody>::try_from(headers).is_ok());
+        assert!(Record::<EmptyBody>::try_from(headers).is_ok());
     }
 
     #[test]
@@ -776,7 +783,7 @@ mod raw_tests {
             .collect(),
         };
 
-        assert!(Record::<MissingBody>::try_from(headers).is_err());
+        assert!(Record::<EmptyBody>::try_from(headers).is_err());
     }
 
     #[test]
@@ -795,7 +802,7 @@ mod raw_tests {
             .collect(),
         };
 
-        assert!(Record::<MissingBody>::try_from(headers).is_err());
+        assert!(Record::<EmptyBody>::try_from(headers).is_err());
     }
 
     #[test]
@@ -811,7 +818,7 @@ mod raw_tests {
             .collect(),
         };
 
-        assert!(Record::<MissingBody>::try_from(headers).is_err());
+        assert!(Record::<EmptyBody>::try_from(headers).is_err());
     }
 
     #[test]
@@ -830,7 +837,7 @@ mod raw_tests {
             .collect(),
         };
 
-        assert!(Record::<MissingBody>::try_from(headers).is_err());
+        assert!(Record::<EmptyBody>::try_from(headers).is_err());
     }
 }
 
@@ -838,7 +845,7 @@ mod raw_tests {
 mod builder_tests {
     use crate::header::WarcHeader;
     use crate::{
-        BufferedBody, MissingBody, RawRecordHeader, Record, RecordBuilder, RecordType, TruncatedType,
+        BufferedBody, EmptyBody, RawRecordHeader, Record, RecordBuilder, RecordType, TruncatedType,
     };
 
     use std::convert::TryFrom;
@@ -905,7 +912,7 @@ mod builder_tests {
             .collect(),
         };
 
-        assert!(Record::<MissingBody>::try_from(headers).is_ok());
+        assert!(Record::<EmptyBody>::try_from(headers).is_ok());
     }
 
     #[test]
