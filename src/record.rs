@@ -2,7 +2,7 @@ use chrono::prelude::*;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
-use std::io::{Read, Seek};
+use std::io::{Read, Seek, SeekFrom};
 use uuid::Uuid;
 
 use crate::header::WarcHeader;
@@ -35,6 +35,19 @@ mod streaming_trait {
     impl<T: Read + Seek> StreamingBody<T> {
         pub(crate) fn new(stream: T, max_len: u64) -> StreamingBody<T> {
             StreamingBody(stream, max_len)
+        }
+
+        pub(crate) fn into_raw_parts(self) -> (T, u64) {
+            let StreamingBody(stream, max_len) = self;
+            (stream, max_len)
+        }
+
+        pub(crate) fn len(&self) -> u64 {
+            self.1
+        }
+
+        pub(crate) fn stream_mut(&mut self) -> &mut T {
+            &mut self.0
         }
     }
     impl<T: Read + Seek> BodyKind for StreamingBody<T> {
@@ -535,6 +548,69 @@ impl Record<BufferedBody> {
         );
 
         (headers, body.0)
+    }
+}
+
+impl<T: Read + Seek> Record<StreamingBody<T>> {
+    /// Returns the stream of this record's body, consuming this record in the process.
+    ///
+    /// If the record header should be preserved, use `into_buffered` instead.
+    pub fn into_body_stream(self) -> std::io::Take<T> {
+        let (stream, stream_len) = self.body.into_raw_parts();
+        stream.take(stream_len)
+    }
+
+    /// Returns a record with a buffered body by collecting the streaming body.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail if the underlying stream returns an error. If this happens, the
+    /// state of the stream is not guaranteed.
+    pub fn into_buffered(self) -> std::io::Result<Record<BufferedBody>> {
+        let Record {
+            headers,
+            record_date,
+            record_id,
+            record_type,
+            truncated_type,
+            body,
+        } = self;
+
+        let buf = {
+            let (stream, stream_len) = body.into_raw_parts();
+            let mut body = Vec::with_capacity(stream_len as usize);
+            stream.take(stream_len).read_to_end(&mut body)?;
+            body
+        };
+
+        let empty_record = Record {
+            headers,
+            record_date,
+            record_id,
+            record_type,
+            truncated_type,
+            ..Default::default()
+        };
+
+        Ok(empty_record.add_body(buf))
+    }
+
+    /// Reads and returns a copy of the body.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail if the underlying stream returns an error. If this happens, the
+    /// opertion is not guaranteed to be idempotent, or to leave the stream in a known state.
+    pub fn body(&mut self) -> std::io::Result<Vec<u8>> {
+        let len = self.body.len();
+        let stream = self.body.stream_mut();
+        let start_pos = stream.seek(SeekFrom::Current(0))?;
+
+        let mut buf = Vec::with_capacity(len as usize);
+        stream.take(len).read_to_end(&mut buf)?;
+        stream.seek(SeekFrom::Start(start_pos))?;
+
+        Ok(buf)
     }
 }
 

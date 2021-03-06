@@ -22,6 +22,14 @@ impl<R: BufRead> WarcReader<R> {
     pub fn new(r: R) -> Self {
         WarcReader { reader: r }
     }
+
+    /// Create an iterator over all of the raw records read.
+    ///
+    /// This only does well-formedness checks on the headers. See `RawRecordHeader` for more
+    /// information.
+    pub fn iter_raw_records(self) -> RawRecordIter<R> {
+        RawRecordIter::new(self.reader)
+    }
 }
 
 impl WarcReader<BufReader<fs::File>> {
@@ -56,7 +64,17 @@ impl WarcReader<BufReader<GzipReader<std::fs::File>>> {
     }
 }
 
-impl<R: BufRead> Iterator for WarcReader<R> {
+pub struct RawRecordIter<R> {
+    reader: R
+}
+
+impl<R: BufRead> RawRecordIter<R> {
+    pub(crate) fn new(reader: R) -> RawRecordIter<R> {
+        RawRecordIter { reader }
+    }
+}
+
+impl<R: BufRead> Iterator for RawRecordIter<R> {
     type Item = Result<(RawRecordHeader, Vec<u8>), Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -169,7 +187,7 @@ mod tests {
         );
         let expected_body: &[u8] = b"12345";
 
-        let mut reader = WarcReader::new(create_reader!(raw));
+        let mut reader = WarcReader::new(create_reader!(raw)).iter_raw_records();
         let (headers, body) = reader.next().unwrap().unwrap();
         assert_eq!(headers.version, expected_version);
         assert_eq!(headers.as_ref(), &expected_headers);
@@ -197,7 +215,7 @@ mod tests {
             \r\n\
         ";
 
-        let mut reader = WarcReader::new(create_reader!(raw));
+        let mut reader = WarcReader::new(create_reader!(raw)).iter_raw_records();
         {
             let expected_version = "1.0";
             let expected_headers: HashMap<WarcHeader, Vec<u8>> = HashMap::from_iter(
