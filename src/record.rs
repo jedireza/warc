@@ -572,7 +572,7 @@ impl Record<BufferedBody> {
     }
 }
 
-impl<'t, T: Read + Seek + 't> Record<StreamingBody<'t, T>> {
+impl<'t, T: Read + 't> Record<StreamingBody<'t, T>> {
     /// Returns a record with a buffered body by collecting the streaming body.
     ///
     /// # Errors
