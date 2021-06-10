@@ -1,5 +1,5 @@
 use crate::parser;
-use crate::{BufferedBody, Error, RawRecordHeader, Record};
+use crate::{BufferedBody, Error, RawRecordHeader, Record, StreamingBody};
 
 use std::convert::TryInto;
 use std::fs;
@@ -38,6 +38,14 @@ impl<R: BufRead> WarcReader<R> {
     /// type for more information.
     pub fn iter_records(self) -> RecordIter<R> {
         RecordIter::new(self.reader)
+    }
+
+    /// Create a streaming iterator over all of the records read.
+    ///
+    /// This will build each record header, and allow the caller to decide whether to read
+    /// the body or not.
+    pub fn stream_records<'r>(&'r mut self) -> StreamingIter<'r, R> {
+        StreamingIter::new(&mut self.reader)
     }
 }
 
@@ -237,6 +245,102 @@ impl<R: BufRead> Iterator for RecordIter<R> {
             Ok(b) => {
                 let buffered: Record<_> = b;
                 Some(Ok(buffered.add_body(body)))
+            }
+            Err(e) => Some(Err(e)),
+        }
+    }
+}
+
+pub struct StreamingIter<'r, R> {
+    reader: &'r mut R,
+    current_item_size: u64,
+}
+
+impl<R: BufRead> StreamingIter<'_, R> {
+    pub(crate) fn new(reader: &mut R) -> StreamingIter<'_, R> {
+        StreamingIter {
+            reader,
+            current_item_size: 0,
+        }
+    }
+
+    fn skip_body(&mut self) -> Result<(), Error> {
+        let mut body_buffer: Vec<u8> = Vec::with_capacity(1 * MB);
+        let mut found_body = self.current_item_size == 0;
+        let mut body_bytes_read = 0;
+        let maximum_read_range = self.current_item_size as usize + 4;
+        while !found_body {
+            let bytes_read = self
+                .reader
+                .read_until(b'\n', &mut body_buffer)
+                .map_err(|_| Error::ReadData)?;
+
+            body_bytes_read += bytes_read;
+
+            // we expect 4 characters (\r\n\r\n) after the body
+            if bytes_read == 2 && body_bytes_read == maximum_read_range {
+                found_body = true;
+            }
+
+            if bytes_read == 0 {
+                return Err(Error::UnexpectedEOB);
+            }
+
+            if body_bytes_read > maximum_read_range {
+                return Err(Error::ReadOverflow);
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn next_item(&mut self) -> Option<Result<Record<StreamingBody<'_, R>>, Error>> {
+        if let Err(e) = self.skip_body() {
+            return Some(Err(e));
+        }
+
+        let mut header_buffer: Vec<u8> = Vec::with_capacity(64 * KB);
+        let mut found_headers = false;
+        while !found_headers {
+            let bytes_read = match self.reader.read_until(b'\n', &mut header_buffer) {
+                Err(_) => return Some(Err(Error::ReadData)),
+                Ok(len) => len,
+            };
+
+            if bytes_read == 0 {
+                return None;
+            }
+
+            if bytes_read == 2 {
+                let last_two_chars = header_buffer.len() - 2;
+                if &header_buffer[last_two_chars..] == b"\r\n" {
+                    found_headers = true;
+                }
+            }
+        }
+
+        let headers_parsed = match parser::headers(&header_buffer) {
+            Err(_) => return Some(Err(Error::ParseHeaders)),
+            Ok(parsed) => parsed.1,
+        };
+        let version_ref = headers_parsed.0;
+        let headers_ref = headers_parsed.1;
+        self.current_item_size = headers_parsed.2 as u64;
+
+        let headers = RawRecordHeader {
+            version: version_ref.to_owned(),
+            headers: headers_ref
+                .into_iter()
+                .map(|(token, value)| (token.into(), value.to_owned()))
+                .collect(),
+        };
+        match headers.try_into() {
+            Ok(b) => {
+                let record: Record<_> = b;
+                let fixed_stream_result = record
+                    .add_fixed_stream(self.reader, self.current_item_size)
+                    .map_err(|_| Error::ReadData);
+                Some(fixed_stream_result)
             }
             Err(e) => Some(Err(e)),
         }
