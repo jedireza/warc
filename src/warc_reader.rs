@@ -338,7 +338,7 @@ impl<R: BufRead> StreamingIter<'_, R> {
             Ok(b) => {
                 let record: Record<_> = b;
                 let fixed_stream_result = record
-                    .add_fixed_stream(self.reader, self.current_item_size)
+                    .add_fixed_stream(self.reader, &mut self.current_item_size)
                     .map_err(|_| Error::ReadData);
                 Some(fixed_stream_result)
             }

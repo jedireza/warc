@@ -31,27 +31,27 @@ mod streaming_trait {
     }
 
     /// An associated type indicating the body is streamed from a reader.
-    pub struct StreamingBody<'t, T: Read + 't>(&'t mut T, u64);
+    pub struct StreamingBody<'t, T: Read + 't>(&'t mut T, &'t mut u64);
     impl<'t, T: Read + 't> StreamingBody<'t, T> {
-        pub(crate) fn new(stream: &'t mut T, max_len: u64) -> StreamingBody<'t, T> {
+        pub(crate) fn new(stream: &'t mut T, max_len: &'t mut u64) -> StreamingBody<'t, T> {
             StreamingBody(stream, max_len)
         }
 
         pub(crate) fn len(&self) -> u64 {
-            self.1
+            *self.1
         }
     }
     impl<'t, T: Read + 't> BodyKind for StreamingBody<'t, T> {
         fn content_length(&self) -> u64 {
-            self.1
+            *self.1
         }
     }
 
     impl<'t, T: Read + 't> Read for StreamingBody<'t, T> {
         fn read(&mut self, data: &mut [u8]) -> std::io::Result<usize> {
-            let max_read = std::cmp::min(data.len(), self.1 as usize);
+            let max_read = std::cmp::min(data.len(), *self.1 as usize);
             self.0.read(&mut data[..max_read as usize]).and_then(|n| {
-                self.1 -= n as u64;
+                *self.1 -= n as u64;
                 Ok(n)
             })
         }
@@ -435,7 +435,7 @@ impl Record<EmptyBody> {
     pub fn add_fixed_stream<'r, R: Read + 'r>(
         self,
         stream: &'r mut R,
-        len: u64,
+        len: &'r mut u64,
     ) -> std::io::Result<Record<StreamingBody<'r, R>>> {
         let Record {
             headers,
