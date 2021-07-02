@@ -37,22 +37,23 @@ mod streaming_trait {
             StreamingBody(stream, max_len)
         }
 
-        pub(crate) fn into_raw_parts(self) -> (&'t mut T, u64) {
-            let StreamingBody(stream, max_len) = self;
-            (stream, max_len)
-        }
-
         pub(crate) fn len(&self) -> u64 {
             self.1
-        }
-
-        pub(crate) fn stream_mut(&mut self) -> &mut T {
-            &mut self.0
         }
     }
     impl<'t, T: Read + 't> BodyKind for StreamingBody<'t, T> {
         fn content_length(&self) -> u64 {
             self.1
+        }
+    }
+
+    impl<'t, T: Read + 't> Read for StreamingBody<'t, T> {
+        fn read(&mut self, data: &mut [u8]) -> std::io::Result<usize> {
+            let max_read = std::cmp::min(data.len(), self.1 as usize);
+            self.0.read(&mut data[..max_read as usize]).and_then(|n| {
+                self.1 -= n as u64;
+                Ok(n)
+            })
         }
     }
 
@@ -586,14 +587,13 @@ impl<'t, T: Read + 't> Record<StreamingBody<'t, T>> {
             record_id,
             record_type,
             truncated_type,
-            body,
+            mut body,
         } = self;
 
         let buf = {
-            let (stream, stream_len) = body.into_raw_parts();
-            let mut body = Vec::with_capacity(stream_len as usize);
-            stream.take(stream_len).read_to_end(&mut body)?;
-            body
+            let mut body_vec = Vec::with_capacity(body.len() as usize);
+            body.read_to_end(&mut body_vec)?;
+            body_vec
         };
 
         let empty_record = Record {
