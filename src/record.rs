@@ -56,7 +56,7 @@ mod streaming_trait {
         }
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     /// An associated type indicated the record has a zero-length body.
     pub struct EmptyBody();
     impl BodyKind for EmptyBody {
