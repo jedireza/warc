@@ -473,7 +473,7 @@ impl Record<EmptyBody> {
             record_type,
             truncated_type,
             ..
-        } = Record::<EmptyBody>::default();
+        } = self;
 
         Ok(Record {
             headers,
