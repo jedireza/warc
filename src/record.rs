@@ -2,7 +2,8 @@ use chrono::prelude::*;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::Read;
+
 use uuid::Uuid;
 
 use crate::header::WarcHeader;
@@ -50,9 +51,9 @@ mod streaming_trait {
     impl<'t, T: Read + 't> Read for StreamingBody<'t, T> {
         fn read(&mut self, data: &mut [u8]) -> std::io::Result<usize> {
             let max_read = std::cmp::min(data.len(), *self.1 as usize);
-            self.0.read(&mut data[..max_read as usize]).and_then(|n| {
+            self.0.read(&mut data[..max_read as usize]).map(|n| {
                 *self.1 -= n as u64;
-                Ok(n)
+                n
             })
         }
     }
@@ -628,10 +629,10 @@ impl Clone for Record<EmptyBody> {
         Record {
             headers: self.headers.clone(),
             record_type: self.record_type.clone(),
-            record_date: self.record_date.clone(),
+            record_date: self.record_date,
             record_id: self.record_id.clone(),
             truncated_type: self.truncated_type.clone(),
-            body: self.body.clone(),
+            body: self.body,
         }
     }
 }
@@ -641,7 +642,7 @@ impl Clone for Record<BufferedBody> {
         Record {
             headers: self.headers.clone(),
             record_type: self.record_type.clone(),
-            record_date: self.record_date.clone(),
+            record_date: self.record_date,
             record_id: self.record_id.clone(),
             truncated_type: self.truncated_type.clone(),
             body: self.body.clone(),

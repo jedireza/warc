@@ -4,7 +4,7 @@ use crate::{BufferedBody, Error, RawRecordHeader, Record, StreamingBody};
 use std::convert::TryInto;
 use std::fs;
 use std::io;
-use std::io::{BufRead, BufReader, Cursor};
+use std::io::{BufRead, BufReader};
 use std::path::Path;
 
 #[cfg(feature = "gzip")]
@@ -44,7 +44,7 @@ impl<R: BufRead> WarcReader<R> {
     ///
     /// This will build each record header, and allow the caller to decide whether to read
     /// the body or not.
-    pub fn stream_records<'r>(&'r mut self) -> StreamingIter<'r, R> {
+    pub fn stream_records(&mut self) -> StreamingIter<'_, R> {
         StreamingIter::new(&mut self.reader)
     }
 }
@@ -285,9 +285,9 @@ impl<R: BufRead> StreamingIter<'_, R> {
         let mut crlfs = [0; 4];
 
         match self.reader.read(&mut crlfs) {
-            Ok(4) => {},
+            Ok(4) => {}
             Ok(_) => return Err(Error::UnexpectedEOB),
-            Err(e) => return Err(Error::ReadData),
+            Err(_) => return Err(Error::ReadData),
         }
 
         if &crlfs == b"\x0d\x0a\x0d\x0a" {
@@ -497,7 +497,12 @@ mod next_item_tests {
 
         let mut reader = WarcReader::new(create_reader!(raw));
         let mut stream_iter = reader.stream_records();
-        let record = stream_iter.next_item().unwrap().unwrap().into_buffered().unwrap();
+        let record = stream_iter
+            .next_item()
+            .unwrap()
+            .unwrap()
+            .into_buffered()
+            .unwrap();
         assert_eq!(record.warc_version(), "1.0");
         assert_eq!(record.content_length(), 5);
         assert_eq!(record.warc_id(), "<urn:test:basic-record:record-0>");
@@ -529,7 +534,12 @@ mod next_item_tests {
         let mut stream_iter = reader.stream_records();
 
         {
-            let record = stream_iter.next_item().unwrap().unwrap().into_buffered().unwrap();
+            let record = stream_iter
+                .next_item()
+                .unwrap()
+                .unwrap()
+                .into_buffered()
+                .unwrap();
             assert_eq!(record.warc_version(), "1.0");
             assert_eq!(record.content_length(), 5);
             assert_eq!(record.warc_id(), "<urn:test:two-records:record-0>");
@@ -537,7 +547,12 @@ mod next_item_tests {
         }
 
         {
-            let record = stream_iter.next_item().unwrap().unwrap().into_buffered().unwrap();
+            let record = stream_iter
+                .next_item()
+                .unwrap()
+                .unwrap()
+                .into_buffered()
+                .unwrap();
             assert_eq!(record.warc_version(), "1.0");
             assert_eq!(record.content_length(), 6);
             assert_eq!(record.warc_id(), "<urn:test:two-records:record-1>");
@@ -572,7 +587,12 @@ mod next_item_tests {
         let _skipped = stream_iter.next_item().unwrap().unwrap();
 
         {
-            let record = stream_iter.next_item().unwrap().unwrap().into_buffered().unwrap();
+            let record = stream_iter
+                .next_item()
+                .unwrap()
+                .unwrap()
+                .into_buffered()
+                .unwrap();
             assert_eq!(record.warc_version(), "1.0");
             assert_eq!(record.content_length(), 6);
             assert_eq!(record.warc_id(), "<urn:test:two-records:record-1>");
@@ -613,7 +633,12 @@ mod next_item_tests {
         let mut stream_iter = reader.stream_records();
 
         {
-            let record = stream_iter.next_item().unwrap().unwrap().into_buffered().unwrap();
+            let record = stream_iter
+                .next_item()
+                .unwrap()
+                .unwrap()
+                .into_buffered()
+                .unwrap();
             assert_eq!(record.warc_version(), "1.0");
             assert_eq!(record.content_length(), 5);
             assert_eq!(record.warc_id(), "<urn:test:three-records:record-0>");
@@ -621,7 +646,12 @@ mod next_item_tests {
         }
 
         {
-            let record = stream_iter.next_item().unwrap().unwrap().into_buffered().unwrap();
+            let record = stream_iter
+                .next_item()
+                .unwrap()
+                .unwrap()
+                .into_buffered()
+                .unwrap();
             assert_eq!(record.warc_version(), "1.0");
             assert_eq!(record.content_length(), 6);
             assert_eq!(record.warc_id(), "<urn:test:three-records:record-1>");
@@ -629,7 +659,12 @@ mod next_item_tests {
         }
 
         {
-            let record = stream_iter.next_item().unwrap().unwrap().into_buffered().unwrap();
+            let record = stream_iter
+                .next_item()
+                .unwrap()
+                .unwrap()
+                .into_buffered()
+                .unwrap();
             assert_eq!(record.warc_version(), "1.0");
             assert_eq!(record.content_length(), 8);
             assert_eq!(record.warc_id(), "<urn:test:three-records:record-2>");
