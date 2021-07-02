@@ -4,7 +4,7 @@ use crate::{BufferedBody, Error, RawRecordHeader, Record, StreamingBody};
 use std::convert::TryInto;
 use std::fs;
 use std::io;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Cursor};
 use std::path::Path;
 
 #[cfg(feature = "gzip")]
@@ -254,6 +254,7 @@ impl<R: BufRead> Iterator for RecordIter<R> {
 pub struct StreamingIter<'r, R> {
     reader: &'r mut R,
     current_item_size: u64,
+    first_record: bool,
 }
 
 impl<R: BufRead> StreamingIter<'_, R> {
@@ -261,41 +262,45 @@ impl<R: BufRead> StreamingIter<'_, R> {
         StreamingIter {
             reader,
             current_item_size: 0,
+            first_record: true,
         }
     }
 
     fn skip_body(&mut self) -> Result<(), Error> {
-        let mut body_buffer: Vec<u8> = Vec::with_capacity(1 * MB);
-        let mut found_body = self.current_item_size == 0;
-        let mut body_bytes_read = 0;
-        let maximum_read_range = self.current_item_size as usize + 4;
-        while !found_body {
-            let bytes_read = self
-                .reader
-                .read_until(b'\n', &mut body_buffer)
-                .map_err(|_| Error::ReadData)?;
-
-            body_bytes_read += bytes_read;
-
-            // we expect 4 characters (\r\n\r\n) after the body
-            if bytes_read == 2 && body_bytes_read == maximum_read_range {
-                found_body = true;
-            }
-
+        let mut read_buffer = [0u8; 1 * MB];
+        let maximum_read_range = self.current_item_size;
+        let mut body_bytes_left = maximum_read_range;
+        while body_bytes_left > 0 {
+            let read_size = std::cmp::min(body_bytes_left, read_buffer.len() as u64) as usize;
+            let bytes_read = match self.reader.read(&mut read_buffer[..read_size]) {
+                Err(_) => return Err(Error::ReadData),
+                Ok(len) => len as u64,
+            };
             if bytes_read == 0 {
                 return Err(Error::UnexpectedEOB);
             }
-
-            if body_bytes_read > maximum_read_range {
-                return Err(Error::ReadOverflow);
-            }
+            body_bytes_left -= bytes_read;
         }
 
-        Ok(())
+        let mut crlfs = [0; 4];
+
+        match self.reader.read(&mut crlfs) {
+            Ok(4) => {},
+            Ok(_) => return Err(Error::UnexpectedEOB),
+            Err(e) => return Err(Error::ReadData),
+        }
+
+        if &crlfs == b"\x0d\x0a\x0d\x0a" {
+            Ok(())
+        } else {
+            Err(Error::ParseHeaders)
+        }
     }
 
     pub fn next_item(&mut self) -> Option<Result<Record<StreamingBody<'_, R>>, Error>> {
-        if let Err(e) = self.skip_body() {
+        if self.first_record {
+            self.first_record = false;
+        } else if let Err(e) = self.skip_body() {
             return Some(Err(e));
         }
 
