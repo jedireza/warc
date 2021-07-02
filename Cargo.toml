@@ -13,6 +13,7 @@ edition = "2018"
 [dependencies]
 chrono = "0.4.11"
 nom = "5.1.1"
+url = "2"
 uuid = { version = "0.8.1", features = ["v4"] }
 
 [dependencies.libflate]
