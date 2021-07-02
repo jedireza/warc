@@ -1,7 +1,14 @@
+use std::fmt::Display;
+
+#[cfg(feature = "with_serde")]
+use serde::{Deserialize, Serialize};
 /// Represents a WARC header defined by the standard.
 ///
 /// All headers are camel-case versions of the standard names, with the hyphens removed.
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
+#[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "with_serde", serde(into = "String"))]
+#[cfg_attr(feature = "with_serde", serde(from = "String"))]
 pub enum WarcHeader {
     ContentLength,
     ContentType,
@@ -25,8 +32,14 @@ pub enum WarcHeader {
     Unknown(String),
 }
 
-impl ToString for WarcHeader {
-    fn to_string(&self) -> String {
+impl From<WarcHeader> for String {
+    fn from(header: WarcHeader) -> Self {
+        header.to_string()
+    }
+}
+
+impl Display for WarcHeader {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let stringified = match self {
             WarcHeader::ContentLength => "content-length",
             WarcHeader::ContentType => "content-type",
@@ -49,7 +62,7 @@ impl ToString for WarcHeader {
             WarcHeader::WarcInfoID => "warc-warcinfo-id",
             WarcHeader::Unknown(ref string) => string,
         };
-        stringified.to_string()
+        write!(f, "{}", stringified)
     }
 }
 

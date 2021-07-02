@@ -19,6 +19,12 @@ uuid = { version = "0.8.1", features = ["v4"] }
 version = "1"
 optional = true
 
+[dependencies.serde]
+version = "1"
+optional = true
+features = ["derive"]
+
 [features]
 default = ["gzip"]
 gzip = ["libflate"]
+with_serde = ["serde"]
