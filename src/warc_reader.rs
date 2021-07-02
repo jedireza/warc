@@ -353,7 +353,7 @@ impl<R: BufRead> StreamingIter<'_, R> {
 }
 
 #[cfg(test)]
-mod tests {
+mod iter_raw_tests {
     use std::collections::HashMap;
     use std::io::{BufReader, Cursor};
     use std::iter::FromIterator;
@@ -464,6 +464,176 @@ mod tests {
             assert_eq!(headers.version, expected_version);
             assert_eq!(headers.as_ref(), &expected_headers);
             assert_eq!(body, expected_body);
+        }
+    }
+}
+
+#[cfg(test)]
+mod next_item_tests {
+    use std::collections::HashMap;
+    use std::io::{BufReader, Cursor};
+    use std::iter::FromIterator;
+
+    use crate::{header::WarcHeader, WarcReader};
+
+    macro_rules! create_reader {
+        ($raw:expr) => {{
+            BufReader::new(Cursor::new($raw.get(..).unwrap()))
+        }};
+    }
+
+    #[test]
+    fn first_item() {
+        let raw = b"\
+            WARC/1.0\r\n\
+            Warc-Type: dunno\r\n\
+            Content-Length: 5\r\n\
+            WARC-Record-Id: <urn:test:basic-record:record-0>\r\n\
+            WARC-Date: 2020-07-08T02:52:55Z\r\n\
+            \r\n\
+            12345\r\n\
+            \r\n\
+        ";
+
+        let mut reader = WarcReader::new(create_reader!(raw));
+        let mut stream_iter = reader.stream_records();
+        let record = stream_iter.next_item().unwrap().unwrap().into_buffered().unwrap();
+        assert_eq!(record.warc_version(), "1.0");
+        assert_eq!(record.content_length(), 5);
+        assert_eq!(record.warc_id(), "<urn:test:basic-record:record-0>");
+        assert_eq!(record.body(), b"12345");
+    }
+
+    #[test]
+    fn both_items() {
+        let raw = b"\
+            WARC/1.0\r\n\
+            Warc-Type: dunno\r\n\
+            Content-Length: 5\r\n\
+            WARC-Record-Id: <urn:test:two-records:record-0>\r\n\
+            WARC-Date: 2020-07-08T02:52:55Z\r\n\
+            \r\n\
+            12345\r\n\
+            \r\n\
+            WARC/1.0\r\n\
+            Warc-Type: another\r\n\
+            WARC-Record-Id: <urn:test:two-records:record-1>\r\n\
+            WARC-Date: 2020-07-08T02:52:56Z\r\n\
+            Content-Length: 6\r\n\
+            \r\n\
+            123456\r\n\
+            \r\n\
+        ";
+
+        let mut reader = WarcReader::new(create_reader!(raw));
+        let mut stream_iter = reader.stream_records();
+
+        {
+            let record = stream_iter.next_item().unwrap().unwrap().into_buffered().unwrap();
+            assert_eq!(record.warc_version(), "1.0");
+            assert_eq!(record.content_length(), 5);
+            assert_eq!(record.warc_id(), "<urn:test:two-records:record-0>");
+            assert_eq!(record.body(), b"12345");
+        }
+
+        {
+            let record = stream_iter.next_item().unwrap().unwrap().into_buffered().unwrap();
+            assert_eq!(record.warc_version(), "1.0");
+            assert_eq!(record.content_length(), 6);
+            assert_eq!(record.warc_id(), "<urn:test:two-records:record-1>");
+            assert_eq!(record.body(), b"123456");
+        }
+    }
+
+    #[test]
+    fn only_second_item() {
+        let raw = b"\
+            WARC/1.0\r\n\
+            Warc-Type: dunno\r\n\
+            Content-Length: 5\r\n\
+            WARC-Record-Id: <urn:test:two-records:record-0>\r\n\
+            WARC-Date: 2020-07-08T02:52:55Z\r\n\
+            \r\n\
+            12345\r\n\
+            \r\n\
+            WARC/1.0\r\n\
+            Warc-Type: another\r\n\
+            WARC-Record-Id: <urn:test:two-records:record-1>\r\n\
+            WARC-Date: 2020-07-08T02:52:56Z\r\n\
+            Content-Length: 6\r\n\
+            \r\n\
+            123456\r\n\
+            \r\n\
+        ";
+
+        let mut reader = WarcReader::new(create_reader!(raw));
+        let mut stream_iter = reader.stream_records();
+
+        let _skipped = stream_iter.next_item().unwrap().unwrap();
+
+        {
+            let record = stream_iter.next_item().unwrap().unwrap().into_buffered().unwrap();
+            assert_eq!(record.warc_version(), "1.0");
+            assert_eq!(record.content_length(), 6);
+            assert_eq!(record.warc_id(), "<urn:test:two-records:record-1>");
+            assert_eq!(record.body(), b"123456");
+        }
+    }
+
+    #[test]
+    fn triple_items() {
+        let raw = b"\
+            WARC/1.0\r\n\
+            Warc-Type: dunno\r\n\
+            Content-Length: 5\r\n\
+            WARC-Record-Id: <urn:test:three-records:record-0>\r\n\
+            WARC-Date: 2020-07-08T02:52:55Z\r\n\
+            \r\n\
+            12345\r\n\
+            \r\n\
+            WARC/1.0\r\n\
+            Warc-Type: another\r\n\
+            WARC-Record-Id: <urn:test:three-records:record-1>\r\n\
+            WARC-Date: 2020-07-08T02:52:56Z\r\n\
+            Content-Length: 6\r\n\
+            \r\n\
+            123456\r\n\
+            \r\n\
+            WARC/1.0\r\n\
+            Warc-Type: yet another\r\n\
+            WARC-Record-Id: <urn:test:three-records:record-2>\r\n\
+            WARC-Date: 2020-07-08T02:52:56Z\r\n\
+            Content-Length: 8\r\n\
+            \r\n\
+            12345678\r\n\
+            \r\n\
+        ";
+
+        let mut reader = WarcReader::new(create_reader!(raw));
+        let mut stream_iter = reader.stream_records();
+
+        {
+            let record = stream_iter.next_item().unwrap().unwrap().into_buffered().unwrap();
+            assert_eq!(record.warc_version(), "1.0");
+            assert_eq!(record.content_length(), 5);
+            assert_eq!(record.warc_id(), "<urn:test:three-records:record-0>");
+            assert_eq!(record.body(), b"12345");
+        }
+
+        {
+            let record = stream_iter.next_item().unwrap().unwrap().into_buffered().unwrap();
+            assert_eq!(record.warc_version(), "1.0");
+            assert_eq!(record.content_length(), 6);
+            assert_eq!(record.warc_id(), "<urn:test:three-records:record-1>");
+            assert_eq!(record.body(), b"123456");
+        }
+
+        {
+            let record = stream_iter.next_item().unwrap().unwrap().into_buffered().unwrap();
+            assert_eq!(record.warc_version(), "1.0");
+            assert_eq!(record.content_length(), 8);
+            assert_eq!(record.warc_id(), "<urn:test:three-records:record-2>");
+            assert_eq!(record.body(), b"12345678");
         }
     }
 }
