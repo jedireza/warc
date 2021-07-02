@@ -430,36 +430,6 @@ impl Record<EmptyBody> {
         }
     }
 
-    /// Add a streaming body to this record.
-    pub fn add_stream<'r, R: Read + Seek + 'r>(
-        self,
-        mut stream: &'r mut R,
-    ) -> std::io::Result<Record<StreamingBody<'r, R>>> {
-        let len = {
-            let pos = stream.seek(std::io::SeekFrom::Current(0))?;
-            let len = stream.seek(std::io::SeekFrom::End(0))?;
-            stream.seek(std::io::SeekFrom::Start(pos))?;
-            len
-        };
-        let Record {
-            headers,
-            record_date,
-            record_id,
-            record_type,
-            truncated_type,
-            ..
-        } = Record::<EmptyBody>::default();
-
-        Ok(Record {
-            headers,
-            record_date,
-            record_id,
-            record_type,
-            truncated_type,
-            body: StreamingBody::new(stream, len),
-        })
-    }
-
     /// Add a streaming body to this record, whose expected size may not match the actual stream
     /// length.
     pub fn add_fixed_stream<'r, R: Read + 'r>(
