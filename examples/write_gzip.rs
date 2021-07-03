@@ -1,19 +1,19 @@
 use chrono::prelude::*;
 
 use warc::header::WarcHeader;
-use warc::{RawRecord, Record, RecordType, WarcWriter};
+use warc::{BufferedBody, RawRecordHeader, Record, RecordType, WarcWriter};
 
 fn main() -> Result<(), std::io::Error> {
     let date = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let body = format!("wrote to the file on {}", date);
     let body = body.into_bytes();
 
-    let record = RawRecord {
+    let headers = RawRecordHeader {
         version: "1.0".to_owned(),
         headers: vec![
             (
                 WarcHeader::RecordID,
-                Record::generate_record_id().into_bytes(),
+                Record::<BufferedBody>::generate_record_id().into_bytes(),
             ),
             (
                 WarcHeader::WarcType,
@@ -28,12 +28,11 @@ fn main() -> Result<(), std::io::Error> {
         ]
         .into_iter()
         .collect(),
-        body: body,
     };
 
     let mut file = WarcWriter::from_path_gzip("warc_example.warc.gz")?;
 
-    let bytes_written = file.write_raw(&record)?;
+    let bytes_written = file.write_raw(headers, &body)?;
 
     // NB: the compression stream must be finish()ed, or the file will be truncated
     let gzip_stream = file.into_inner()?;

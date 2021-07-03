@@ -1,4 +1,4 @@
-use crate::{RawRecord, Record};
+use crate::{BufferedBody, RawRecordHeader, Record};
 
 use std::fs;
 use std::io;
@@ -24,21 +24,25 @@ impl<W: Write> WarcWriter<W> {
     /// Write a single record.
     ///
     /// The number of bytes written is returned upon success.
-    pub fn write(&mut self, record: &Record) -> io::Result<usize> {
-        self.write_raw(&record.to_raw())
+    pub fn write(&mut self, record: &Record<BufferedBody>) -> io::Result<usize> {
+        let (headers, body) = record.clone().into_raw_parts();
+        self.write_raw(headers, &body)
     }
 
     /// Write a single raw record.
     ///
     /// The number of bytes written is returned upon success.
-    pub fn write_raw(&mut self, record: &RawRecord) -> io::Result<usize> {
+    pub fn write_raw<B>(&mut self, headers: RawRecordHeader, body: &B) -> io::Result<usize>
+    where
+        B: AsRef<[u8]>,
+    {
         let mut bytes_written = 0;
 
         bytes_written += self.writer.write(&[87, 65, 82, 67, 47])?;
-        bytes_written += self.writer.write(record.version.as_bytes())?;
+        bytes_written += self.writer.write(headers.version.as_bytes())?;
         bytes_written += self.writer.write(&[13, 10])?;
 
-        for (token, value) in record.headers.iter() {
+        for (token, value) in headers.as_ref().iter() {
             bytes_written += self.writer.write(token.to_string().as_bytes())?;
             bytes_written += self.writer.write(&[58, 32])?;
             bytes_written += self.writer.write(&value)?;
@@ -46,7 +50,7 @@ impl<W: Write> WarcWriter<W> {
         }
         bytes_written += self.writer.write(&[13, 10])?;
 
-        bytes_written += self.writer.write(&record.body)?;
+        bytes_written += self.writer.write(body.as_ref())?;
         bytes_written += self.writer.write(&[13, 10])?;
         bytes_written += self.writer.write(&[13, 10])?;
 

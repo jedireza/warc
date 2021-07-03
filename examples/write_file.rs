@@ -1,39 +1,23 @@
 use chrono::prelude::*;
 
-use warc::header::WarcHeader;
-use warc::{RawRecord, Record, RecordType, WarcWriter};
+use warc::{header::WarcHeader, BufferedBody, Record, RecordType, WarcWriter};
 
 fn main() -> Result<(), std::io::Error> {
-    let date = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
+    let date = Utc::now();
     let body = format!("wrote to the file on {}", date);
     let body = body.into_bytes();
 
-    let record = RawRecord {
-        version: "1.0".to_owned(),
-        headers: vec![
-            (
-                WarcHeader::RecordID,
-                Record::generate_record_id().into_bytes(),
-            ),
-            (
-                WarcHeader::WarcType,
-                RecordType::WarcInfo.to_string().into_bytes(),
-            ),
-            (WarcHeader::Date, date.into_bytes()),
-            (WarcHeader::IPAddress, "127.0.0.1".to_owned().into_bytes()),
-            (
-                WarcHeader::ContentLength,
-                body.len().to_string().into_bytes(),
-            ),
-        ]
-        .into_iter()
-        .collect(),
-        body: body,
-    };
+    let mut headers = Record::<BufferedBody>::new();
+    headers.set_warc_type(RecordType::WarcInfo);
+    headers.set_date(date);
+    headers
+        .set_header(WarcHeader::IPAddress, "127.0.0.1")
+        .expect("BUG: should be a valid IP address");
+    let record = headers.add_body(body);
 
     let mut file = WarcWriter::from_path("warc_example.warc")?;
 
-    let bytes_written = file.write_raw(&record)?;
+    let bytes_written = file.write(&record)?;
 
     println!("{} bytes written.", bytes_written);
 
