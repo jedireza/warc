@@ -1,15 +1,18 @@
+#![deny(missing_docs)]
 //! A WARC (Web ARChive) library
 
 mod error;
 pub use error::Error;
 
 mod warc_reader;
-pub use warc_reader::WarcReader;
+pub use warc_reader::*;
 mod warc_writer;
-pub use warc_writer::WarcWriter;
+pub use warc_writer::*;
 
-pub mod header;
+mod header;
+pub use header::WarcHeader;
 
+/// Core functions for parsing. Not recommended for direct use.
 pub mod parser;
 
 mod record;

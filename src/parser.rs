@@ -61,6 +61,7 @@ fn header(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
     Ok((input, (token, value)))
 }
 
+/// Parse a WARC header block.
 // TODO: evaluate the use of `ErrorKind::Verify` here.
 pub fn headers(input: &[u8]) -> IResult<&[u8], (&str, Vec<(&str, &[u8])>, usize)> {
     let (input, version) = version(input)?;
@@ -107,6 +108,7 @@ pub fn headers(input: &[u8]) -> IResult<&[u8], (&str, Vec<(&str, &[u8])>, usize)
     Ok((input, (version, warc_headers, content_length.unwrap())))
 }
 
+/// Parse an entire WARC record.
 pub fn record(input: &[u8]) -> IResult<&[u8], (&str, Vec<(&str, &[u8])>, &[u8])> {
     let (input, (headers, _)) = tuple((headers, line_ending))(input)?;
     let (input, (body, _, _)) = tuple((take(headers.2), line_ending, line_ending))(input)?;

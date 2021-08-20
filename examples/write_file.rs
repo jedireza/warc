@@ -1,6 +1,6 @@
 use chrono::prelude::*;
 
-use warc::{header::WarcHeader, BufferedBody, Record, RecordType, WarcWriter};
+use warc::{BufferedBody, Record, RecordType, WarcHeader, WarcWriter};
 
 fn main() -> Result<(), std::io::Error> {
     let date = Utc::now();
