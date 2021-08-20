@@ -373,7 +373,7 @@ mod iter_raw_tests {
     use std::io::{BufReader, Cursor};
     use std::iter::FromIterator;
 
-    use crate::{header::WarcHeader, WarcReader};
+    use crate::{WarcHeader, WarcReader};
     macro_rules! create_reader {
         ($raw:expr) => {{
             BufReader::new(Cursor::new($raw.get(..).unwrap()))
@@ -489,7 +489,7 @@ mod next_item_tests {
     use std::io::{BufReader, Cursor};
     use std::iter::FromIterator;
 
-    use crate::{header::WarcHeader, WarcReader};
+    use crate::{WarcHeader, WarcReader};
 
     macro_rules! create_reader {
         ($raw:expr) => {{

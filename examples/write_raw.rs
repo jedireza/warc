@@ -1,6 +1,6 @@
 use chrono::prelude::*;
 
-use warc::header::WarcHeader;
+use warc::WarcHeader;
 use warc::{BufferedBody, RawRecordHeader, Record, RecordType, WarcWriter};
 
 fn main() -> Result<(), std::io::Error> {

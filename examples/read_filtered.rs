@@ -1,4 +1,4 @@
-use warc::header::WarcHeader;
+use warc::WarcHeader;
 use warc::WarcReader;
 
 macro_rules! usage_err {

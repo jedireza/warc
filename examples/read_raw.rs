@@ -1,4 +1,4 @@
-use warc::header::WarcHeader;
+use warc::WarcHeader;
 use warc::WarcReader;
 
 fn main() -> Result<(), std::io::Error> {
