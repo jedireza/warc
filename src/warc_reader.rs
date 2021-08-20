@@ -81,6 +81,7 @@ impl WarcReader<BufReader<GzipReader<std::fs::File>>> {
     }
 }
 
+/// An iterator of raw records streamed from a reader. See `RawRecord` for more information.
 pub struct RawRecordIter<R> {
     reader: R,
 }
@@ -163,6 +164,7 @@ impl<R: BufRead> Iterator for RawRecordIter<R> {
     }
 }
 
+/// An iterator which returns the records read by a reader.
 pub struct RecordIter<R> {
     reader: R,
 }
@@ -251,6 +253,13 @@ impl<R: BufRead> Iterator for RecordIter<R> {
     }
 }
 
+/// An iterator-like type to "stream" records from a reader.
+///
+/// This API returns records which use the `StreamingBody` type. This allows reading record headers
+/// and metadata without reading the bodies. Bodies can be read or skipped as desired.
+///
+/// This is streaming iterator is particularly useful for streams of records which are indefinite
+/// or contain and records of unknown size.
 pub struct StreamingIter<'r, R> {
     reader: &'r mut R,
     current_item_size: u64,
@@ -297,6 +306,12 @@ impl<R: BufRead> StreamingIter<'_, R> {
         }
     }
 
+    /// Advance the stream to the next item.
+    ///
+    /// Returns one of the following:
+    /// * Some(Ok(r))` is the next record read from the stream.
+    /// * `Some(Err)` indicates there was a read error.
+    /// * `None` indicates no more records are returned.
     pub fn next_item(&mut self) -> Option<Result<Record<StreamingBody<'_, R>>, Error>> {
         if self.first_record {
             self.first_record = false;

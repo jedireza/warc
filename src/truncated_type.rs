@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum TruncatedType {
     Length,

@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 /// Represents a WARC header defined by the standard.
 ///
 /// All headers are camel-case versions of the standard names, with the hyphens removed.
+#[allow(missing_docs)]
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "with_serde", serde(into = "String"))]
