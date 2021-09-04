@@ -64,20 +64,15 @@ impl WarcReader<BufReader<fs::File>> {
 }
 
 #[cfg(feature = "gzip")]
-impl WarcReader<BufReader<GzipReader<std::fs::File>>> {
+impl WarcReader<BufReader<GzipReader<BufReader<std::fs::File>>>> {
     /// Create a new reader which reads from a compressed file.
     ///
     /// Only GZIP compression is currently supported.
     pub fn from_path_gzip<P: AsRef<Path>>(path: P) -> io::Result<Self> {
-        let file = fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open(&path)?;
-        let gzip_stream = GzipReader::new(file)?;
-        let reader = BufReader::with_capacity(1 * MB, gzip_stream);
+        let file = fs::File::open(&path)?;
 
-        Ok(WarcReader::new(reader))
+        let gzip_stream = GzipReader::new(BufReader::with_capacity(1 * MB, file))?;
+        Ok(WarcReader::new(BufReader::new(gzip_stream)))
     }
 }
 
