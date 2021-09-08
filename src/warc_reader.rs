@@ -100,7 +100,7 @@ impl<R: BufRead> Iterator for RawRecordIter<R> {
         let mut found_headers = false;
         while !found_headers {
             let bytes_read = match self.reader.read_until(b'\n', &mut header_buffer) {
-                Err(_) => return Some(Err(Error::ReadData)),
+                Err(io) => return Some(Err(Error::ReadData(io))),
                 Ok(len) => len,
             };
 
@@ -117,7 +117,7 @@ impl<R: BufRead> Iterator for RawRecordIter<R> {
         }
 
         let headers_parsed = match parser::headers(&header_buffer) {
-            Err(_) => return Some(Err(Error::ParseHeaders)),
+            Err(e) => return Some(Err(Error::ParseHeaders(e.to_owned()))),
             Ok(parsed) => parsed.1,
         };
         let version_ref = headers_parsed.0;
@@ -130,7 +130,7 @@ impl<R: BufRead> Iterator for RawRecordIter<R> {
         let maximum_read_range = expected_body_len + 4;
         while !found_body {
             let bytes_read = match self.reader.read_until(b'\n', &mut body_buffer) {
-                Err(_) => return Some(Err(Error::ReadData)),
+                Err(io) => return Some(Err(Error::ReadData(io))),
                 Ok(len) => len,
             };
 
@@ -183,7 +183,7 @@ impl<R: BufRead> Iterator for RecordIter<R> {
         let mut found_headers = false;
         while !found_headers {
             let bytes_read = match self.reader.read_until(b'\n', &mut header_buffer) {
-                Err(_) => return Some(Err(Error::ReadData)),
+                Err(io) => return Some(Err(Error::ReadData(io))),
                 Ok(len) => len,
             };
 
@@ -200,7 +200,7 @@ impl<R: BufRead> Iterator for RecordIter<R> {
         }
 
         let headers_parsed = match parser::headers(&header_buffer) {
-            Err(_) => return Some(Err(Error::ParseHeaders)),
+            Err(e) => return Some(Err(Error::ParseHeaders(e.to_owned()))),
             Ok(parsed) => parsed.1,
         };
         let version_ref = headers_parsed.0;
@@ -213,7 +213,7 @@ impl<R: BufRead> Iterator for RecordIter<R> {
         let maximum_read_range = expected_body_len + 4;
         while !found_body {
             let bytes_read = match self.reader.read_until(b'\n', &mut body_buffer) {
-                Err(_) => return Some(Err(Error::ReadData)),
+                Err(io) => return Some(Err(Error::ReadData(io))),
                 Ok(len) => len,
             };
 
@@ -282,7 +282,7 @@ impl<R: BufRead> StreamingIter<'_, R> {
         while body_bytes_left > 0 {
             let read_size = std::cmp::min(body_bytes_left, read_buffer.len() as u64) as usize;
             let bytes_read = match self.reader.read(&mut read_buffer[..read_size]) {
-                Err(_) => return Err(Error::ReadData),
+                Err(io) => return Err(Error::ReadData(io)),
                 Ok(len) => len as u64,
             };
             if bytes_read == 0 {
@@ -296,13 +296,15 @@ impl<R: BufRead> StreamingIter<'_, R> {
         match self.reader.read(&mut crlfs) {
             Ok(4) => {}
             Ok(_) => return Err(Error::UnexpectedEOB),
-            Err(_) => return Err(Error::ReadData),
+            Err(io) => return Err(Error::ReadData(io)),
         }
 
         if &crlfs == b"\x0d\x0a\x0d\x0a" {
             Ok(())
         } else {
-            Err(Error::ParseHeaders)
+            let synthetic_err: nom::Err<(Vec<u8>, nom::error::ErrorKind)> =
+                nom::Err::Failure((vec![0x0d, 0x0a, 0x0d, 0x0a], nom::error::ErrorKind::Tag));
+            Err(Error::ParseHeaders(synthetic_err))
         }
     }
 
@@ -323,7 +325,7 @@ impl<R: BufRead> StreamingIter<'_, R> {
         let mut found_headers = false;
         while !found_headers {
             let bytes_read = match self.reader.read_until(b'\n', &mut header_buffer) {
-                Err(_) => return Some(Err(Error::ReadData)),
+                Err(io) => return Some(Err(Error::ReadData(io))),
                 Ok(len) => len,
             };
 
@@ -340,7 +342,7 @@ impl<R: BufRead> StreamingIter<'_, R> {
         }
 
         let headers_parsed = match parser::headers(&header_buffer) {
-            Err(_) => return Some(Err(Error::ParseHeaders)),
+            Err(e) => return Some(Err(Error::ParseHeaders(e.to_owned()))),
             Ok(parsed) => parsed.1,
         };
         let version_ref = headers_parsed.0;
@@ -359,7 +361,7 @@ impl<R: BufRead> StreamingIter<'_, R> {
                 let record: Record<_> = b;
                 let fixed_stream_result = record
                     .add_fixed_stream(self.reader, &mut self.current_item_size)
-                    .map_err(|_| Error::ReadData);
+                    .map_err(Error::ReadData);
                 Some(fixed_stream_result)
             }
             Err(e) => Some(Err(e)),
