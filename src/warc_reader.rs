@@ -8,7 +8,7 @@ use std::io::{BufRead, BufReader};
 use std::path::Path;
 
 #[cfg(feature = "gzip")]
-use libflate::gzip::Decoder as GzipReader;
+use libflate::gzip::MultiDecoder as GzipReader;
 
 const KB: usize = 1_024;
 const MB: usize = 1_048_576;
