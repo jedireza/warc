@@ -173,6 +173,7 @@ pub struct RecordBuilder {
 }
 
 // HACK: std::io::Error doesn't implement Clone, this is the next best thing
+// see: https://github.com/rust-lang/rust/issues/24135
 impl Clone for RecordBuilder {
     fn clone(&self) -> Self {
         let err: Option<&WarcError> = self.last_error.as_ref();
