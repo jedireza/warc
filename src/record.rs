@@ -156,12 +156,7 @@ impl std::fmt::Display for RawRecordHeader {
     fn fmt(&self, w: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         writeln!(w, "WARC/{}", self.version)?;
         for (key, value) in self.as_ref().iter() {
-            writeln!(
-                w,
-                "{}: {}",
-                key.to_string(),
-                String::from_utf8_lossy(&value)
-            )?;
+            writeln!(w, "{}: {}", key.to_string(), String::from_utf8_lossy(value))?;
         }
         writeln!(w)?;
 
@@ -170,11 +165,32 @@ impl std::fmt::Display for RawRecordHeader {
 }
 
 /// A builder for WARC records from data.
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct RecordBuilder {
     value: Record<BufferedBody>,
     broken_headers: HashMap<WarcHeader, Vec<u8>>,
     last_error: Option<WarcError>,
+}
+
+// HACK: std::io::Error doesn't implement Clone, this is the next best thing
+// see: https://github.com/rust-lang/rust/issues/24135
+impl Clone for RecordBuilder {
+    fn clone(&self) -> Self {
+        let err: Option<&WarcError> = self.last_error.as_ref();
+        let last_error: Option<WarcError> = err.map(|err| match err {
+            WarcError::ReadData(e) => WarcError::ReadData(std::io::Error::from(e.kind())),
+            WarcError::ParseHeaders(e) => WarcError::ParseHeaders(e.clone()),
+            WarcError::MissingHeader(e) => WarcError::MissingHeader(e.clone()),
+            WarcError::MalformedHeader(h, e) => WarcError::MalformedHeader(h.clone(), e.clone()),
+            WarcError::ReadOverflow => WarcError::ReadOverflow,
+            WarcError::UnexpectedEOB => WarcError::UnexpectedEOB,
+        });
+        RecordBuilder {
+            value: self.value.clone(),
+            broken_headers: self.broken_headers.clone(),
+            last_error,
+        }
+    }
 }
 
 /// A single WARC record.
