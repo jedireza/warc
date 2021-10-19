@@ -596,6 +596,12 @@ impl<'t, T: Read + 't> Record<StreamingBody<'t, T>> {
     }
 }
 
+impl<'t, T: Read + 't> Read for Record<StreamingBody<'t, T>> {
+    fn read(&mut self, dst: &mut [u8]) -> Result<usize, std::io::Error> {
+        self.body.read(dst)
+    }
+}
+
 impl Default for Record<BufferedBody> {
     fn default() -> Record<BufferedBody> {
         Record {
