@@ -288,9 +288,11 @@ impl<R: BufRead> StreamingIter<'_, R> {
 
         let mut crlfs = [0; 4];
 
-        match self.reader.read(&mut crlfs) {
-            Ok(4) => {}
-            Ok(_) => return Err(Error::UnexpectedEOB),
+        match self.reader.read_exact(&mut crlfs) {
+            Ok(()) => (),
+            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                return Err(Error::UnexpectedEOB)
+            }
             Err(io) => return Err(Error::ReadData(io)),
         }
 
