@@ -1043,6 +1043,28 @@ mod raw_tests {
 
         assert!(Record::<EmptyBody>::try_from(headers).is_err());
     }
+
+    #[test]
+    fn verify_display() {
+        let headers = RawRecordHeader {
+            version: "1.0".to_owned(),
+            headers: vec![
+                (WarcHeader::WarcType, b"dunno".to_vec()),
+                (WarcHeader::Date, b"2024-01-01T00:00:00Z".to_vec()),
+            ]
+            .into_iter()
+            .collect(),
+        };
+
+        let expected = "\
+            WARC/1.0\n\
+            warc-type: dunno\n\
+            warc-date: 2024-01-01T00:00:00Z\n\
+            \n\
+        ";
+
+        assert_eq!(headers.to_string(), expected);
+    }
 }
 
 #[cfg(test)]
