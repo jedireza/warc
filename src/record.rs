@@ -606,7 +606,7 @@ impl Default for Record<BufferedBody> {
     fn default() -> Record<BufferedBody> {
         Record {
             headers: RawRecordHeader {
-                version: "WARC/1.0".to_string(),
+                version: "1.0".to_string(),
                 headers: HashMap::new(),
             },
             record_date: Utc::now(),
@@ -622,7 +622,7 @@ impl Default for Record<EmptyBody> {
     fn default() -> Record<EmptyBody> {
         Record {
             headers: RawRecordHeader {
-                version: "WARC/1.0".to_string(),
+                version: "1.0".to_string(),
                 headers: HashMap::new(),
             },
             record_date: Utc::now(),
@@ -795,7 +795,7 @@ mod record_tests {
         std::thread::sleep(std::time::Duration::from_millis(10));
         let after = Utc::now();
         assert_eq!(record.content_length(), 0);
-        assert_eq!(record.warc_version(), "WARC/1.0");
+        assert_eq!(record.warc_version(), "1.0");
         assert_eq!(record.warc_type(), &RecordType::Resource);
         assert!(record.date() > &before);
         assert!(record.date() < &after);
@@ -929,7 +929,7 @@ mod raw_tests {
     #[test]
     fn create() {
         let headers = RawRecordHeader {
-            version: "WARC/1.0".to_owned(),
+            version: "1.0".to_owned(),
             headers: HashMap::new(),
         };
 
@@ -939,7 +939,7 @@ mod raw_tests {
     #[test]
     fn create_with_headers() {
         let headers = RawRecordHeader {
-            version: "WARC/1.0".to_owned(),
+            version: "1.0".to_owned(),
             headers: vec![(
                 WarcHeader::WarcType,
                 RecordType::WarcInfo.to_string().into_bytes(),
@@ -954,7 +954,7 @@ mod raw_tests {
     #[test]
     fn verify_ok() {
         let headers = RawRecordHeader {
-            version: "WARC/1.0".to_owned(),
+            version: "1.0".to_owned(),
             headers: vec![
                 (WarcHeader::WarcType, b"dunno".to_vec()),
                 (WarcHeader::ContentLength, b"5".to_vec()),
@@ -974,7 +974,7 @@ mod raw_tests {
     #[test]
     fn verify_missing_type() {
         let headers = RawRecordHeader {
-            version: "WARC/1.0".to_owned(),
+            version: "1.0".to_owned(),
             headers: vec![
                 (WarcHeader::ContentLength, b"5".to_vec()),
                 (
@@ -993,7 +993,7 @@ mod raw_tests {
     #[test]
     fn verify_missing_content_length() {
         let headers = RawRecordHeader {
-            version: "WARC/1.0".to_owned(),
+            version: "1.0".to_owned(),
             headers: vec![
                 (WarcHeader::WarcType, b"dunno".to_vec()),
                 (
@@ -1012,7 +1012,7 @@ mod raw_tests {
     #[test]
     fn verify_missing_record_id() {
         let headers = RawRecordHeader {
-            version: "WARC/1.0".to_owned(),
+            version: "1.0".to_owned(),
             headers: vec![
                 (WarcHeader::WarcType, b"dunno".to_vec()),
                 (WarcHeader::ContentLength, b"5".to_vec()),
@@ -1028,7 +1028,7 @@ mod raw_tests {
     #[test]
     fn verify_missing_date() {
         let headers = RawRecordHeader {
-            version: "WARC/1.0".to_owned(),
+            version: "1.0".to_owned(),
             headers: vec![
                 (WarcHeader::WarcType, b"dunno".to_vec()),
                 (WarcHeader::ContentLength, b"5".to_vec()),
@@ -1042,6 +1042,28 @@ mod raw_tests {
         };
 
         assert!(Record::<EmptyBody>::try_from(headers).is_err());
+    }
+
+    #[test]
+    fn verify_display() {
+        let headers = RawRecordHeader {
+            version: "1.0".to_owned(),
+            headers: vec![
+                (WarcHeader::WarcType, b"dunno".to_vec()),
+                (WarcHeader::Date, b"2024-01-01T00:00:00Z".to_vec()),
+            ]
+            .into_iter()
+            .collect(),
+        };
+
+        let expected = "\
+            WARC/1.0\n\
+            warc-type: dunno\n\
+            warc-date: 2024-01-01T00:00:00Z\n\
+            \n\
+        ";
+
+        assert_eq!(headers.to_string(), expected);
     }
 }
 
@@ -1057,7 +1079,7 @@ mod builder_tests {
     #[test]
     fn default() {
         let (headers, body) = RecordBuilder::default().build_raw();
-        assert_eq!(headers.version, "WARC/1.0".to_string());
+        assert_eq!(headers.version, "1.0".to_string());
         assert_eq!(
             headers.as_ref().get(&WarcHeader::ContentLength).unwrap(),
             &b"0".to_vec()
@@ -1074,7 +1096,7 @@ mod builder_tests {
         let (headers, body) = RecordBuilder::default()
             .body(b"abcdef".to_vec())
             .build_raw();
-        assert_eq!(headers.version, "WARC/1.0".to_string());
+        assert_eq!(headers.version, "1.0".to_string());
         assert_eq!(
             headers.as_ref().get(&WarcHeader::ContentLength).unwrap(),
             &b"6".to_vec()
@@ -1111,7 +1133,7 @@ mod builder_tests {
     #[test]
     fn create_with_headers() {
         let headers = RawRecordHeader {
-            version: "WARC/1.0".to_owned(),
+            version: "1.0".to_owned(),
             headers: vec![(
                 WarcHeader::WarcType,
                 RecordType::WarcInfo.to_string().into_bytes(),
@@ -1126,7 +1148,7 @@ mod builder_tests {
     #[test]
     fn verify_ok() {
         let headers = RawRecordHeader {
-            version: "WARC/1.0".to_owned(),
+            version: "1.0".to_owned(),
             headers: vec![
                 (WarcHeader::WarcType, b"dunno".to_vec()),
                 (WarcHeader::ContentLength, b"5".to_vec()),

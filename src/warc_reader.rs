@@ -484,11 +484,9 @@ mod iter_raw_tests {
 
 #[cfg(test)]
 mod next_item_tests {
-    use std::collections::HashMap;
     use std::io::{BufReader, Cursor};
-    use std::iter::FromIterator;
 
-    use crate::{WarcHeader, WarcReader};
+    use crate::WarcReader;
 
     macro_rules! create_reader {
         ($raw:expr) => {{
