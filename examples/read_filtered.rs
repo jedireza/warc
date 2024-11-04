@@ -16,7 +16,7 @@ fn main() -> std::io::Result<()> {
 
     let filtered_file_names: Vec<_> = args.map(|s| s.to_string_lossy().to_string()).collect();
     if filtered_file_names.is_empty() {
-        return Err(usage_err!("one or more filtered file names not supplied"))?;
+        Err(usage_err!("one or more filtered file names not supplied"))?;
     }
 
     let mut file = WarcReader::from_path_gzip(warc_name)?;

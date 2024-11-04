@@ -26,9 +26,9 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Error::ParseHeaders(_) => write!(f, "Error parsing headers."),
-            Error::MissingHeader(ref h) => write!(f, "Missing required header: {}", h.to_string()),
+            Error::MissingHeader(ref h) => write!(f, "Missing required header: {}", h),
             Error::MalformedHeader(ref h, ref r) => {
-                write!(f, "Malformed header: {}: {}", h.to_string(), r)
+                write!(f, "Malformed header: {}: {}", h, r)
             }
             Error::ReadData(_) => write!(f, "Error reading data source."),
             Error::ReadOverflow => write!(f, "Read further than expected."),

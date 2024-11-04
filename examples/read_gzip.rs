@@ -10,9 +10,9 @@ fn main() -> Result<(), std::io::Error> {
         match record {
             Err(err) => println!("ERROR: {}\r\n", err),
             Ok(record) => {
-                println!("{}: {}", WarcHeader::RecordID.to_string(), record.warc_id());
-                println!("{}: {}", WarcHeader::Date.to_string(), record.date());
-                println!("");
+                println!("{}: {}", WarcHeader::RecordID, record.warc_id());
+                println!("{}: {}", WarcHeader::Date, record.date());
+                println!();
             }
         }
     }
