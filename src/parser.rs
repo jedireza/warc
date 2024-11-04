@@ -14,7 +14,10 @@ fn version(input: &[u8]) -> IResult<&[u8], &str> {
 
     let version_str = match str::from_utf8(version) {
         Err(_) => {
-            return Err(nom::Err::Error((input, ErrorKind::Verify)));
+            return Err(nom::Err::Error(nom::error::Error::new(
+                input,
+                ErrorKind::Verify,
+            )));
         }
         Ok(version) => version,
     };
@@ -73,7 +76,10 @@ pub fn headers(input: &[u8]) -> IResult<&[u8], (&str, Vec<(&str, &[u8])>, usize)
     for header in headers {
         let token_str = match str::from_utf8(header.0) {
             Err(_) => {
-                return Err(nom::Err::Error((input, ErrorKind::Verify)));
+                return Err(nom::Err::Error(nom::error::Error::new(
+                    input,
+                    ErrorKind::Verify,
+                )));
             }
             Ok(token) => token,
         };
@@ -81,14 +87,20 @@ pub fn headers(input: &[u8]) -> IResult<&[u8], (&str, Vec<(&str, &[u8])>, usize)
         if content_length == None && token_str.to_lowercase() == "content-length" {
             let value_str = match str::from_utf8(header.1) {
                 Err(_) => {
-                    return Err(nom::Err::Error((input, ErrorKind::Verify)));
+                    return Err(nom::Err::Error(nom::error::Error::new(
+                        input,
+                        ErrorKind::Verify,
+                    )));
                 }
                 Ok(value) => value,
             };
 
             match value_str.parse::<usize>() {
                 Err(_) => {
-                    return Err(nom::Err::Error((input, ErrorKind::Verify)));
+                    return Err(nom::Err::Error(nom::error::Error::new(
+                        input,
+                        ErrorKind::Verify,
+                    )));
                 }
                 Ok(len) => {
                     content_length = Some(len);
@@ -168,7 +180,10 @@ mod tests {
 
         assert_eq!(
             headers(&raw_invalid[..]),
-            Err(Err::Error((&b"\r\n"[..], ErrorKind::Verify)))
+            Err(Err::Error(nom::error::Error::new(
+                &b"\r\n"[..],
+                ErrorKind::Verify
+            )))
         );
 
         let raw = b"\
