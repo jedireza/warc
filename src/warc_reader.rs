@@ -112,7 +112,11 @@ impl<R: BufRead> Iterator for RawRecordIter<R> {
         }
 
         let headers_parsed = match parser::headers(&header_buffer) {
-            Err(e) => return Some(Err(Error::ParseHeaders(e.to_owned()))),
+            Err(e) => {
+                return Some(Err(Error::ParseHeaders(
+                    e.map(|inner| (inner.input.to_owned(), inner.code)),
+                )))
+            }
             Ok(parsed) => parsed.1,
         };
         let version_ref = headers_parsed.0;
@@ -195,7 +199,12 @@ impl<R: BufRead> Iterator for RecordIter<R> {
         }
 
         let headers_parsed = match parser::headers(&header_buffer) {
-            Err(e) => return Some(Err(Error::ParseHeaders(e.to_owned()))),
+            Err(e) => {
+                return Some(Err(Error::ParseHeaders(
+                    e.map(|inner| (inner.input.to_owned(), inner.code)),
+                )));
+            }
+
             Ok(parsed) => parsed.1,
         };
         let version_ref = headers_parsed.0;
@@ -339,7 +348,11 @@ impl<R: BufRead> StreamingIter<'_, R> {
         }
 
         let headers_parsed = match parser::headers(&header_buffer) {
-            Err(e) => return Some(Err(Error::ParseHeaders(e.to_owned()))),
+            Err(e) => {
+                return Some(Err(Error::ParseHeaders(
+                    e.map(|inner| (inner.input.to_owned(), inner.code)),
+                )))
+            }
             Ok(parsed) => parsed.1,
         };
         let version_ref = headers_parsed.0;
