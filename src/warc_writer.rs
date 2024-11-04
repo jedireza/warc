@@ -45,7 +45,7 @@ impl<W: Write> WarcWriter<W> {
         for (token, value) in headers.as_ref().iter() {
             bytes_written += self.writer.write(token.to_string().as_bytes())?;
             bytes_written += self.writer.write(&[58, 32])?;
-            bytes_written += self.writer.write(&value)?;
+            bytes_written += self.writer.write(value)?;
             bytes_written += self.writer.write(&[13, 10])?;
         }
         bytes_written += self.writer.write(&[13, 10])?;
@@ -83,8 +83,9 @@ impl WarcWriter<BufWriter<fs::File>> {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(&path)?;
-        let writer = BufWriter::with_capacity(1 * MB, file);
+        let writer = BufWriter::with_capacity(MB, file);
 
         Ok(WarcWriter::new(writer))
     }
@@ -98,9 +99,10 @@ impl WarcWriter<BufWriter<GzipWriter<std::fs::File>>> {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(&path)?;
         let gzip_stream = GzipWriter::new(file)?;
-        let writer = BufWriter::with_capacity(1 * MB, gzip_stream);
+        let writer = BufWriter::with_capacity(MB, gzip_stream);
 
         Ok(WarcWriter::new(writer))
     }

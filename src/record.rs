@@ -51,9 +51,8 @@ mod streaming_trait {
     impl<'t, T: Read + 't> Read for StreamingBody<'t, T> {
         fn read(&mut self, data: &mut [u8]) -> std::io::Result<usize> {
             let max_read = std::cmp::min(data.len(), *self.1 as usize);
-            self.0.read(&mut data[..max_read as usize]).map(|n| {
+            self.0.read(&mut data[..max_read as usize]).inspect(|&n| {
                 *self.1 -= n as u64;
-                n
             })
         }
     }
@@ -156,7 +155,7 @@ impl std::fmt::Display for RawRecordHeader {
     fn fmt(&self, w: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         writeln!(w, "WARC/{}", self.version)?;
         for (key, value) in self.as_ref().iter() {
-            writeln!(w, "{}: {}", key.to_string(), String::from_utf8_lossy(value))?;
+            writeln!(w, "{}: {}", key, String::from_utf8_lossy(value))?;
         }
         writeln!(w)?;
 
@@ -263,7 +262,7 @@ impl<T: BodyKind> Record<T> {
     /// The current implementation generates random values based on UUID version 4.
     ///
     pub fn generate_record_id() -> String {
-        format!("<{}>", Uuid::new_v4().to_urn().to_string())
+        format!("<{}>", Uuid::new_v4().to_urn())
     }
 
     fn parse_content_length(len: &str) -> Result<u64, WarcError> {
@@ -1058,7 +1057,7 @@ mod raw_tests {
 
         let output = headers.to_string();
 
-        let expected_lines = vec![
+        let expected_lines = [
             "WARC/1.0",
             "warc-type: dunno",
             "warc-date: 2024-01-01T00:00:00Z",
