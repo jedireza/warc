@@ -448,17 +448,15 @@ mod iter_raw_tests {
         let mut reader = WarcReader::new(create_reader!(raw)).iter_raw_records();
         {
             let expected_version = "1.0";
-            let expected_headers: HashMap<WarcHeader, Vec<u8>> = HashMap::from_iter(
-                vec![
-                    (WarcHeader::WarcType, b"dunno".to_vec()),
-                    (WarcHeader::ContentLength, b"5".to_vec()),
-                    (
-                        WarcHeader::RecordID,
-                        b"<urn:test:two-records:record-0>".to_vec(),
-                    ),
-                    (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-                ]
-            );
+            let expected_headers: HashMap<WarcHeader, Vec<u8>> = HashMap::from_iter(vec![
+                (WarcHeader::WarcType, b"dunno".to_vec()),
+                (WarcHeader::ContentLength, b"5".to_vec()),
+                (
+                    WarcHeader::RecordID,
+                    b"<urn:test:two-records:record-0>".to_vec(),
+                ),
+                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+            ]);
             let expected_body: &[u8] = b"12345";
 
             let (headers, body) = reader.next().unwrap().unwrap();
@@ -469,17 +467,15 @@ mod iter_raw_tests {
 
         {
             let expected_version = "1.0";
-            let expected_headers: HashMap<WarcHeader, Vec<u8>> = HashMap::from_iter(
-                vec![
-                    (WarcHeader::WarcType, b"another".to_vec()),
-                    (WarcHeader::ContentLength, b"6".to_vec()),
-                    (
-                        WarcHeader::RecordID,
-                        b"<urn:test:two-records:record-1>".to_vec(),
-                    ),
-                    (WarcHeader::Date, b"2020-07-08T02:52:56Z".to_vec()),
-                ]
-            );
+            let expected_headers: HashMap<WarcHeader, Vec<u8>> = HashMap::from_iter(vec![
+                (WarcHeader::WarcType, b"another".to_vec()),
+                (WarcHeader::ContentLength, b"6".to_vec()),
+                (
+                    WarcHeader::RecordID,
+                    b"<urn:test:two-records:record-1>".to_vec(),
+                ),
+                (WarcHeader::Date, b"2020-07-08T02:52:56Z".to_vec()),
+            ]);
             let expected_body: &[u8] = b"123456";
 
             let (headers, body) = reader.next().unwrap().unwrap();

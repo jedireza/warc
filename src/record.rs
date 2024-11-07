@@ -51,7 +51,7 @@ mod streaming_trait {
     impl<'t, T: Read + 't> Read for StreamingBody<'t, T> {
         fn read(&mut self, data: &mut [u8]) -> std::io::Result<usize> {
             let max_read = std::cmp::min(data.len(), *self.1 as usize);
-            self.0.read(&mut data[..max_read as usize]).inspect(|&n| {
+            self.0.read(&mut data[..max_read]).inspect(|&n| {
                 *self.1 -= n as u64;
             })
         }
