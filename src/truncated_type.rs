@@ -1,4 +1,6 @@
 #![allow(missing_docs)]
+
+use std::fmt::Display;
 #[derive(Clone, Debug, PartialEq)]
 pub enum TruncatedType {
     Length,
@@ -8,8 +10,8 @@ pub enum TruncatedType {
     Unknown(String),
 }
 
-impl ToString for TruncatedType {
-    fn to_string(&self) -> String {
+impl Display for TruncatedType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let stringified = match *self {
             TruncatedType::Length => "length",
             TruncatedType::Time => "time",
@@ -17,7 +19,7 @@ impl ToString for TruncatedType {
             TruncatedType::Unspecified => "unspecified",
             TruncatedType::Unknown(ref val) => val.as_ref(),
         };
-        stringified.to_string()
+        f.write_str(stringified)
     }
 }
 

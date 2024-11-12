@@ -1,4 +1,6 @@
 #![allow(missing_docs)]
+
+use std::fmt::Display;
 #[derive(Clone, Debug, PartialEq)]
 pub enum RecordType {
     WarcInfo,
@@ -12,8 +14,8 @@ pub enum RecordType {
     Unknown(String),
 }
 
-impl ToString for RecordType {
-    fn to_string(&self) -> String {
+impl Display for RecordType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let stringified = match *self {
             RecordType::WarcInfo => "warcinfo",
             RecordType::Response => "response",
@@ -25,7 +27,7 @@ impl ToString for RecordType {
             RecordType::Continuation => "continuation",
             RecordType::Unknown(ref val) => val.as_ref(),
         };
-        stringified.to_string()
+        f.write_str(stringified)
     }
 }
 

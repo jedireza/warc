@@ -14,7 +14,10 @@ fn version(input: &[u8]) -> IResult<&[u8], &str> {
 
     let version_str = match str::from_utf8(version) {
         Err(_) => {
-            return Err(nom::Err::Error((input, ErrorKind::Verify)));
+            return Err(nom::Err::Error(nom::error::Error::new(
+                input,
+                ErrorKind::Verify,
+            )));
         }
         Ok(version) => version,
     };
@@ -23,8 +26,7 @@ fn version(input: &[u8]) -> IResult<&[u8], &str> {
 }
 
 fn is_header_token_char(chr: u8) -> bool {
-    match chr {
-        0..=31
+    !matches!(chr, 0..=31
         | 128..=255
         | b'('
         | b')'
@@ -43,9 +45,7 @@ fn is_header_token_char(chr: u8) -> bool {
         | b'{'
         | b'}'
         | b' '
-        | b'\\' => false,
-        _ => true,
-    }
+        | b'\\')
 }
 
 fn header(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
@@ -63,6 +63,7 @@ fn header(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
 
 /// Parse a WARC header block.
 // TODO: evaluate the use of `ErrorKind::Verify` here.
+#[allow(clippy::type_complexity)]
 pub fn headers(input: &[u8]) -> IResult<&[u8], (&str, Vec<(&str, &[u8])>, usize)> {
     let (input, version) = version(input)?;
     let (input, headers) = many1(header)(input)?;
@@ -73,22 +74,31 @@ pub fn headers(input: &[u8]) -> IResult<&[u8], (&str, Vec<(&str, &[u8])>, usize)
     for header in headers {
         let token_str = match str::from_utf8(header.0) {
             Err(_) => {
-                return Err(nom::Err::Error((input, ErrorKind::Verify)));
+                return Err(nom::Err::Error(nom::error::Error::new(
+                    input,
+                    ErrorKind::Verify,
+                )));
             }
             Ok(token) => token,
         };
 
-        if content_length == None && token_str.to_lowercase() == "content-length" {
+        if content_length.is_none() && token_str.to_lowercase() == "content-length" {
             let value_str = match str::from_utf8(header.1) {
                 Err(_) => {
-                    return Err(nom::Err::Error((input, ErrorKind::Verify)));
+                    return Err(nom::Err::Error(nom::error::Error::new(
+                        input,
+                        ErrorKind::Verify,
+                    )));
                 }
                 Ok(value) => value,
             };
 
             match value_str.parse::<usize>() {
                 Err(_) => {
-                    return Err(nom::Err::Error((input, ErrorKind::Verify)));
+                    return Err(nom::Err::Error(nom::error::Error::new(
+                        input,
+                        ErrorKind::Verify,
+                    )));
                 }
                 Ok(len) => {
                     content_length = Some(len);
@@ -101,7 +111,7 @@ pub fn headers(input: &[u8]) -> IResult<&[u8], (&str, Vec<(&str, &[u8])>, usize)
 
     // TODO: Technically if we didn't find a `content-length` header, the record is invalid. Should
     // we be returning an error here instead?
-    if content_length == None {
+    if content_length.is_none() {
         content_length = Some(0);
     }
 
@@ -109,6 +119,7 @@ pub fn headers(input: &[u8]) -> IResult<&[u8], (&str, Vec<(&str, &[u8])>, usize)
 }
 
 /// Parse an entire WARC record.
+#[allow(clippy::type_complexity)]
 pub fn record(input: &[u8]) -> IResult<&[u8], (&str, Vec<(&str, &[u8])>, &[u8])> {
     let (input, (headers, _)) = tuple((headers, line_ending))(input)?;
     let (input, (body, _, _)) = tuple((take(headers.2), line_ending, line_ending))(input)?;
@@ -125,13 +136,13 @@ mod tests {
 
     #[test]
     fn version_parsing() {
-        assert_eq!(version(&b"WARC/0.0\r\n"[..]), Ok((&b""[..], &"0.0"[..])));
+        assert_eq!(version(&b"WARC/0.0\r\n"[..]), Ok((&b""[..], "0.0")));
 
-        assert_eq!(version(&b"WARC/1.0\r\n"[..]), Ok((&b""[..], &"1.0"[..])));
+        assert_eq!(version(&b"WARC/1.0\r\n"[..]), Ok((&b""[..], "1.0")));
 
         assert_eq!(
             version(&b"WARC/2.0-alpha\r\n"[..]),
-            Ok((&b""[..], &"2.0-alpha"[..]))
+            Ok((&b""[..], "2.0-alpha"))
         );
     }
 
@@ -168,7 +179,10 @@ mod tests {
 
         assert_eq!(
             headers(&raw_invalid[..]),
-            Err(Err::Error((&b"\r\n"[..], ErrorKind::Verify)))
+            Err(Err::Error(nom::error::Error::new(
+                &b"\r\n"[..],
+                ErrorKind::Verify
+            )))
         );
 
         let raw = b"\
