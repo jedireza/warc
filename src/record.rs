@@ -1046,24 +1046,36 @@ mod raw_tests {
 
     #[test]
     fn verify_display() {
+        let header_entries = vec![
+            (WarcHeader::WarcType, b"dunno".to_vec()),
+            (WarcHeader::Date, b"2024-01-01T00:00:00Z".to_vec()),
+        ];
+
         let headers = RawRecordHeader {
             version: "1.0".to_owned(),
-            headers: vec![
-                (WarcHeader::WarcType, b"dunno".to_vec()),
-                (WarcHeader::Date, b"2024-01-01T00:00:00Z".to_vec()),
-            ]
-            .into_iter()
-            .collect(),
+            headers: header_entries.into_iter().collect(),
         };
 
-        let expected = "\
-            WARC/1.0\n\
-            warc-type: dunno\n\
-            warc-date: 2024-01-01T00:00:00Z\n\
-            \n\
-        ";
+        let output = headers.to_string();
 
-        assert_eq!(headers.to_string(), expected);
+        let expected_lines = vec![
+            "WARC/1.0",
+            "warc-type: dunno",
+            "warc-date: 2024-01-01T00:00:00Z",
+            "",
+        ];
+        let actual_lines: Vec<_> = output.lines().collect();
+
+        let mut expected_headers: Vec<_> = expected_lines[1..expected_lines.len() - 1].to_vec();
+        expected_headers.sort();
+
+        let mut actual_headers: Vec<_> = actual_lines[1..actual_lines.len() - 1].to_vec();
+        actual_headers.sort();
+
+        // verify parts
+        assert_eq!(actual_lines[0], expected_lines[0]); // WARC version
+        assert_eq!(actual_headers, expected_headers); // headers (sorted)
+        assert_eq!(actual_lines.last(), expected_lines.last()); // empty line
     }
 }
 

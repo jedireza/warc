@@ -120,7 +120,7 @@ impl<R: BufRead> Iterator for RawRecordIter<R> {
         let expected_body_len = headers_parsed.2;
 
         let mut body_buffer: Vec<u8> = Vec::with_capacity(1 * MB);
-        let mut found_body = expected_body_len == 0;
+        let mut found_body = false;
         let mut body_bytes_read = 0;
         let maximum_read_range = expected_body_len + 4;
         while !found_body {
@@ -203,7 +203,7 @@ impl<R: BufRead> Iterator for RecordIter<R> {
         let expected_body_len = headers_parsed.2;
 
         let mut body_buffer: Vec<u8> = Vec::with_capacity(1 * MB);
-        let mut found_body = expected_body_len == 0;
+        let mut found_body = false;
         let mut body_bytes_read = 0;
         let maximum_read_range = expected_body_len + 4;
         while !found_body {
@@ -681,6 +681,76 @@ mod next_item_tests {
             assert_eq!(record.content_length(), 8);
             assert_eq!(record.warc_id(), "<urn:test:three-records:record-2>");
             assert_eq!(record.body(), b"12345678");
+        }
+    }
+
+    #[test]
+    fn empty_content_length() {
+        let raw = b"\
+        WARC/1.0\r\n\
+        Warc-Type: empty-record\r\n\
+        Content-Length: 0\r\n\
+        WARC-Record-Id: <urn:test:empty-content-length>\r\n\
+        WARC-Date: 2020-07-08T02:52:57Z\r\n\
+        \r\n\
+        \r\n\
+    ";
+
+        let mut reader = WarcReader::new(create_reader!(raw));
+        let mut stream_iter = reader.stream_records();
+
+        let record = stream_iter
+            .next_item()
+            .unwrap()
+            .unwrap()
+            .into_buffered()
+            .unwrap();
+        assert_eq!(record.warc_version(), "1.0");
+        assert_eq!(record.content_length(), 0);
+        assert_eq!(record.warc_id(), "<urn:test:empty-content-length>");
+        assert_eq!(record.body(), b"");
+    }
+
+    #[test]
+    fn zero_and_nonzero_content_length() {
+        let raw = b"\
+        WARC/1.0\r\n\
+        Warc-Type: empty-record\r\n\
+        Content-Length: 0\r\n\
+        WARC-Record-Id: <urn:test:zero-content-length>\r\n\
+        WARC-Date: 2020-07-08T02:52:57Z\r\n\
+        \r\n\
+        \r\n\
+        \r\n\
+        WARC/1.0\r\n\
+        Warc-Type: non-empty-record\r\n\
+        Content-Length: 7\r\n\
+        WARC-Record-Id: <urn:test:nonzero-content-length>\r\n\
+        WARC-Date: 2020-07-08T02:52:58Z\r\n\
+        \r\n\
+        1234567\r\n\
+        \r\n\
+    ";
+
+        let reader = WarcReader::new(create_reader!(raw));
+        let mut iter = reader.iter_records();
+
+        // Test the first record with Content-Length: 0
+        {
+            let record = iter.next().unwrap().unwrap();
+            assert_eq!(record.warc_version(), "1.0");
+            assert_eq!(record.content_length(), 0);
+            assert_eq!(record.warc_id(), "<urn:test:zero-content-length>");
+            assert_eq!(record.body(), b"");
+        }
+
+        // Test the second record with non-zero Content-Length
+        {
+            let record = iter.next().unwrap().unwrap();
+            assert_eq!(record.warc_version(), "1.0");
+            assert_eq!(record.content_length(), 7);
+            assert_eq!(record.warc_id(), "<urn:test:nonzero-content-length>");
+            assert_eq!(record.body(), b"1234567");
         }
     }
 }
