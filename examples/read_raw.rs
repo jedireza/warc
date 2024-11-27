@@ -12,15 +12,15 @@ fn main() -> Result<(), std::io::Error> {
             Ok((headers, _)) => {
                 println!(
                     "{}: {}",
-                    WarcHeader::RecordID.to_string(),
+                    WarcHeader::RecordID,
                     String::from_utf8_lossy(headers.as_ref().get(&WarcHeader::RecordID).unwrap())
                 );
                 println!(
                     "{}: {}",
-                    WarcHeader::Date.to_string(),
+                    WarcHeader::Date,
                     String::from_utf8_lossy(headers.as_ref().get(&WarcHeader::Date).unwrap())
                 );
-                println!("");
+                println!();
             }
         }
     }

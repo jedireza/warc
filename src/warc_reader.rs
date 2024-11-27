@@ -54,10 +54,10 @@ impl WarcReader<BufReader<fs::File>> {
     pub fn from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let file = fs::OpenOptions::new()
             .read(true)
-            .write(true)
             .create(true)
+            .truncate(false)
             .open(&path)?;
-        let reader = BufReader::with_capacity(1 * MB, file);
+        let reader = BufReader::with_capacity(MB, file);
 
         Ok(WarcReader::new(reader))
     }
@@ -71,7 +71,7 @@ impl WarcReader<BufReader<GzipReader<BufReader<std::fs::File>>>> {
     pub fn from_path_gzip<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let file = fs::File::open(&path)?;
 
-        let gzip_stream = GzipReader::new(BufReader::with_capacity(1 * MB, file))?;
+        let gzip_stream = GzipReader::new(BufReader::with_capacity(MB, file))?;
         Ok(WarcReader::new(BufReader::new(gzip_stream)))
     }
 }
@@ -112,14 +112,18 @@ impl<R: BufRead> Iterator for RawRecordIter<R> {
         }
 
         let headers_parsed = match parser::headers(&header_buffer) {
-            Err(e) => return Some(Err(Error::ParseHeaders(e.to_owned()))),
+            Err(e) => {
+                return Some(Err(Error::ParseHeaders(
+                    e.map(|inner| (inner.input.to_owned(), inner.code)),
+                )))
+            }
             Ok(parsed) => parsed.1,
         };
         let version_ref = headers_parsed.0;
         let headers_ref = headers_parsed.1;
         let expected_body_len = headers_parsed.2;
 
-        let mut body_buffer: Vec<u8> = Vec::with_capacity(1 * MB);
+        let mut body_buffer: Vec<u8> = Vec::with_capacity(MB);
         let mut found_body = false;
         let mut body_bytes_read = 0;
         let maximum_read_range = expected_body_len + 4;
@@ -195,14 +199,19 @@ impl<R: BufRead> Iterator for RecordIter<R> {
         }
 
         let headers_parsed = match parser::headers(&header_buffer) {
-            Err(e) => return Some(Err(Error::ParseHeaders(e.to_owned()))),
+            Err(e) => {
+                return Some(Err(Error::ParseHeaders(
+                    e.map(|inner| (inner.input.to_owned(), inner.code)),
+                )));
+            }
+
             Ok(parsed) => parsed.1,
         };
         let version_ref = headers_parsed.0;
         let headers_ref = headers_parsed.1;
         let expected_body_len = headers_parsed.2;
 
-        let mut body_buffer: Vec<u8> = Vec::with_capacity(1 * MB);
+        let mut body_buffer: Vec<u8> = Vec::with_capacity(MB);
         let mut found_body = false;
         let mut body_bytes_read = 0;
         let maximum_read_range = expected_body_len + 4;
@@ -271,7 +280,7 @@ impl<R: BufRead> StreamingIter<'_, R> {
     }
 
     fn skip_body(&mut self) -> Result<(), Error> {
-        let mut read_buffer = [0u8; 1 * MB];
+        let mut read_buffer = [0u8; MB];
         let maximum_read_range = self.current_item_size;
         let mut body_bytes_left = maximum_read_range;
         while body_bytes_left > 0 {
@@ -339,7 +348,11 @@ impl<R: BufRead> StreamingIter<'_, R> {
         }
 
         let headers_parsed = match parser::headers(&header_buffer) {
-            Err(e) => return Some(Err(Error::ParseHeaders(e.to_owned()))),
+            Err(e) => {
+                return Some(Err(Error::ParseHeaders(
+                    e.map(|inner| (inner.input.to_owned(), inner.code)),
+                )))
+            }
             Ok(parsed) => parsed.1,
         };
         let version_ref = headers_parsed.0;
@@ -393,18 +406,15 @@ mod iter_raw_tests {
         ";
 
         let expected_version = "1.0";
-        let expected_headers: HashMap<WarcHeader, Vec<u8>> = HashMap::from_iter(
-            vec![
-                (WarcHeader::WarcType, b"dunno".to_vec()),
-                (WarcHeader::ContentLength, b"5".to_vec()),
-                (
-                    WarcHeader::RecordID,
-                    b"<urn:test:basic-record:record-0>".to_vec(),
-                ),
-                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-            ]
-            .into_iter(),
-        );
+        let expected_headers: HashMap<WarcHeader, Vec<u8>> = HashMap::from_iter(vec![
+            (WarcHeader::WarcType, b"dunno".to_vec()),
+            (WarcHeader::ContentLength, b"5".to_vec()),
+            (
+                WarcHeader::RecordID,
+                b"<urn:test:basic-record:record-0>".to_vec(),
+            ),
+            (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+        ]);
         let expected_body: &[u8] = b"12345";
 
         let mut reader = WarcReader::new(create_reader!(raw)).iter_raw_records();
@@ -438,18 +448,15 @@ mod iter_raw_tests {
         let mut reader = WarcReader::new(create_reader!(raw)).iter_raw_records();
         {
             let expected_version = "1.0";
-            let expected_headers: HashMap<WarcHeader, Vec<u8>> = HashMap::from_iter(
-                vec![
-                    (WarcHeader::WarcType, b"dunno".to_vec()),
-                    (WarcHeader::ContentLength, b"5".to_vec()),
-                    (
-                        WarcHeader::RecordID,
-                        b"<urn:test:two-records:record-0>".to_vec(),
-                    ),
-                    (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
-                ]
-                .into_iter(),
-            );
+            let expected_headers: HashMap<WarcHeader, Vec<u8>> = HashMap::from_iter(vec![
+                (WarcHeader::WarcType, b"dunno".to_vec()),
+                (WarcHeader::ContentLength, b"5".to_vec()),
+                (
+                    WarcHeader::RecordID,
+                    b"<urn:test:two-records:record-0>".to_vec(),
+                ),
+                (WarcHeader::Date, b"2020-07-08T02:52:55Z".to_vec()),
+            ]);
             let expected_body: &[u8] = b"12345";
 
             let (headers, body) = reader.next().unwrap().unwrap();
@@ -460,18 +467,15 @@ mod iter_raw_tests {
 
         {
             let expected_version = "1.0";
-            let expected_headers: HashMap<WarcHeader, Vec<u8>> = HashMap::from_iter(
-                vec![
-                    (WarcHeader::WarcType, b"another".to_vec()),
-                    (WarcHeader::ContentLength, b"6".to_vec()),
-                    (
-                        WarcHeader::RecordID,
-                        b"<urn:test:two-records:record-1>".to_vec(),
-                    ),
-                    (WarcHeader::Date, b"2020-07-08T02:52:56Z".to_vec()),
-                ]
-                .into_iter(),
-            );
+            let expected_headers: HashMap<WarcHeader, Vec<u8>> = HashMap::from_iter(vec![
+                (WarcHeader::WarcType, b"another".to_vec()),
+                (WarcHeader::ContentLength, b"6".to_vec()),
+                (
+                    WarcHeader::RecordID,
+                    b"<urn:test:two-records:record-1>".to_vec(),
+                ),
+                (WarcHeader::Date, b"2020-07-08T02:52:56Z".to_vec()),
+            ]);
             let expected_body: &[u8] = b"123456";
 
             let (headers, body) = reader.next().unwrap().unwrap();
