@@ -84,6 +84,7 @@ impl WarcWriter<BufWriter<fs::File>> {
             .write(true)
             .create(true)
             .truncate(false)
+            .append(true)
             .open(&path)?;
         let writer = BufWriter::with_capacity(MB, file);
 
@@ -100,6 +101,7 @@ impl WarcWriter<BufWriter<GzipWriter<std::fs::File>>> {
             .write(true)
             .create(true)
             .truncate(false)
+            .append(true)
             .open(&path)?;
         let gzip_stream = GzipWriter::new(file)?;
         let writer = BufWriter::with_capacity(MB, gzip_stream);
