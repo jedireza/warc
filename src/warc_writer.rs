@@ -56,6 +56,21 @@ impl<W: Write> WarcWriter<W> {
 
         Ok(bytes_written)
     }
+
+    /// Gets a reference to the underlying writer.
+    pub fn as_inner(&self) -> &W {
+        &self.writer
+    }
+
+    /// Gets a mutable reference to the underlying writer.
+    pub fn as_inner_mut(&mut self) -> &mut W {
+        &mut self.writer
+    }
+
+    /// Extract the underlying writer for re-use.
+    pub fn into_inner(self) -> W {
+        self.writer
+    }
 }
 
 impl<W: Write> WarcWriter<BufWriter<W>> {
