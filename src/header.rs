@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// All headers are camel-case versions of the standard names, with the hyphens removed.
 #[allow(missing_docs)]
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "with_serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "with_serde", serde(into = "String"))]
 #[cfg_attr(feature = "with_serde", serde(from = "String"))]
