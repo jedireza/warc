@@ -17,7 +17,7 @@ url = "2"
 uuid = { version = "0.8.1", features = ["v4"] }
 
 [dependencies.libflate]
-version = "1"
+version = "2"
 optional = true
 
 [dependencies.serde]
