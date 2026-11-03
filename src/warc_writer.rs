@@ -37,22 +37,26 @@ impl<W: Write> WarcWriter<W> {
         B: AsRef<[u8]>,
     {
         let mut bytes_written = 0;
+        let mut put = |bytes: &[u8]| -> io::Result<()> {
+            self.writer.write_all(bytes)?;
+            bytes_written += bytes.len();
+            Ok(())
+        };
 
-        bytes_written += self.writer.write(&[87, 65, 82, 67, 47])?;
-        bytes_written += self.writer.write(headers.version.as_bytes())?;
-        bytes_written += self.writer.write(&[13, 10])?;
+        put(b"WARC/")?;
+        put(headers.version.as_bytes())?;
+        put(b"\r\n")?;
 
-        for (token, value) in headers.as_ref().iter() {
-            bytes_written += self.writer.write(token.to_string().as_bytes())?;
-            bytes_written += self.writer.write(&[58, 32])?;
-            bytes_written += self.writer.write(value)?;
-            bytes_written += self.writer.write(&[13, 10])?;
+        for (token, value) in ordered_headers(&headers) {
+            put(token.as_bytes())?;
+            put(b": ")?;
+            put(value)?;
+            put(b"\r\n")?;
         }
-        bytes_written += self.writer.write(&[13, 10])?;
+        put(b"\r\n")?;
 
-        bytes_written += self.writer.write(body.as_ref())?;
-        bytes_written += self.writer.write(&[13, 10])?;
-        bytes_written += self.writer.write(&[13, 10])?;
+        put(body.as_ref())?;
+        put(b"\r\n\r\n")?;
 
         Ok(bytes_written)
     }
@@ -105,5 +109,95 @@ impl WarcWriter<BufWriter<GzipWriter<std::fs::File>>> {
         let writer = BufWriter::with_capacity(MB, gzip_stream);
 
         Ok(WarcWriter::new(writer))
+    }
+}
+
+/// The headers in a stable order: the four every record must carry (WARC 1.1 section 4), in the order the standard
+/// lists them, then the rest by name. The same record is therefore always written as the same bytes.
+fn ordered_headers(headers: &RawRecordHeader) -> Vec<(String, &Vec<u8>)> {
+    const MANDATORY: [&str; 4] = ["warc-type", "warc-record-id", "warc-date", "content-length"];
+    let mut out: Vec<(String, &Vec<u8>)> = headers
+        .as_ref()
+        .iter()
+        .map(|(token, value)| (token.to_string(), value))
+        .collect();
+    out.sort_by(|(a, _), (b, _)| {
+        let rank = |name: &str| {
+            MANDATORY
+                .iter()
+                .position(|m| *m == name)
+                .unwrap_or(MANDATORY.len())
+        };
+        rank(a).cmp(&rank(b)).then_with(|| a.cmp(b))
+    });
+    out
+}
+
+#[cfg(test)]
+mod writer_tests {
+    use super::WarcWriter;
+    use crate::{header::WarcHeader, RecordType};
+    use chrono::TimeZone;
+    use std::io::{self, Write};
+
+    /// A sink that accepts at most three bytes per call, as a pipe or socket may.
+    struct Trickle(Vec<u8>);
+
+    impl Write for Trickle {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            let n = buf.len().min(3);
+            self.0.extend_from_slice(&buf[..n]);
+            Ok(n)
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn record() -> crate::Record<crate::BufferedBody> {
+        crate::RecordBuilder::default()
+            .warc_type(RecordType::Resource)
+            .warc_id("<urn:uuid:00000000-0000-4000-8000-000000000000>")
+            .date(chrono::Utc.timestamp_opt(0, 0).unwrap())
+            .header(WarcHeader::TargetURI, "https://example.org/")
+            .header(WarcHeader::ContentType, "text/plain")
+            .header(WarcHeader::BlockDigest, "sha1:AAAA")
+            .body(b"hello".to_vec())
+            .build()
+            .unwrap()
+    }
+
+    #[test]
+    fn short_writes_lose_nothing() {
+        let mut w = WarcWriter::new(Trickle(Vec::new()));
+        let n = w.write(&record()).unwrap();
+        let bytes = w.writer.0;
+        assert_eq!(n, bytes.len());
+        assert!(bytes.ends_with(b"\r\n\r\nhello\r\n\r\n"));
+    }
+
+    #[test]
+    fn headers_are_written_in_a_stable_order() {
+        let mut w = WarcWriter::new(Vec::new());
+        w.write(&record()).unwrap();
+        let text = String::from_utf8(w.writer).unwrap();
+        let names: Vec<&str> = text
+            .lines()
+            .skip(1)
+            .take_while(|l| !l.is_empty())
+            .map(|l| l.split(':').next().unwrap())
+            .collect();
+        assert_eq!(
+            names,
+            [
+                "warc-type",
+                "warc-record-id",
+                "warc-date",
+                "content-length",
+                "content-type",
+                "warc-block-digest",
+                "warc-target-uri"
+            ]
+        );
     }
 }
